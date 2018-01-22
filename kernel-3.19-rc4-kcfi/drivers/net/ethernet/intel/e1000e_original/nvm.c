@@ -1,5 +1,5 @@
 /* Intel PRO/1000 Linux driver
- * Copyright(c) 1999 - 2015 Intel Corporation.
+ * Copyright(c) 1999 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -172,6 +172,7 @@ s32 e1000e_acquire_nvm(struct e1000_hw *hw)
 
 	ew32(EECD, eecd | E1000_EECD_REQ);
 	eecd = er32(EECD);
+
 	while (timeout) {
 		if (eecd & E1000_EECD_GNT)
 			break;
@@ -326,14 +327,13 @@ s32 e1000e_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 
 		ew32(EERD, eerd);
 		ret_val = e1000e_poll_eerd_eewr_done(hw, E1000_NVM_POLL_READ);
-		if (ret_val)
+		if (ret_val) {
+			e_dbg("NVM read error: %d\n", ret_val);
 			break;
+		}
 
 		data[i] = (er32(EERD) >> E1000_NVM_RW_REG_DATA);
 	}
-
-	if (ret_val)
-		e_dbg("NVM read error: %d\n", ret_val);
 
 	return ret_val;
 }
@@ -400,6 +400,7 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 		/* Loop to allow for up to whole page write of eeprom */
 		while (widx < words) {
 			u16 word_out = data[widx];
+
 			word_out = (word_out >> 8) | (word_out << 8);
 			e1000_shift_out_eec_bits(hw, word_out, 16);
 			widx++;

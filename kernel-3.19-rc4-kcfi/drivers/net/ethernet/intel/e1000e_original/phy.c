@@ -1,5 +1,5 @@
 /* Intel PRO/1000 Linux driver
- * Copyright(c) 1999 - 2015 Intel Corporation.
+ * Copyright(c) 1999 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -34,8 +34,7 @@ static const u16 e1000_m88_cable_length_table[] = {
 };
 
 #define M88E1000_CABLE_LENGTH_TABLE_SIZE \
-		(sizeof(e1000_m88_cable_length_table) / \
-		 sizeof(e1000_m88_cable_length_table[0]))
+		ARRAY_SIZE(e1000_m88_cable_length_table)
 
 static const u16 e1000_igp_2_cable_length_table[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 3, 5, 8, 11, 13, 16, 18, 21, 0, 0, 0, 3,
@@ -49,8 +48,7 @@ static const u16 e1000_igp_2_cable_length_table[] = {
 };
 
 #define IGP02E1000_CABLE_LENGTH_TABLE_SIZE \
-		(sizeof(e1000_igp_2_cable_length_table) / \
-		 sizeof(e1000_igp_2_cable_length_table[0]))
+		ARRAY_SIZE(e1000_igp_2_cable_length_table)
 
 /**
  *  e1000e_check_reset_block_generic - Check if PHY reset is blocked
@@ -897,14 +895,14 @@ s32 e1000e_copper_link_setup_igp(struct e1000_hw *hw)
 		 */
 		if (phy->autoneg_advertised == ADVERTISE_1000_FULL) {
 			/* Disable SmartSpeed */
-			ret_val = e1e_rphy(hw,
-					   IGP01E1000_PHY_PORT_CONFIG, &data);
+			ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CONFIG,
+					   &data);
 			if (ret_val)
 				return ret_val;
 
 			data &= ~IGP01E1000_PSCFR_SMART_SPEED;
-			ret_val = e1e_wphy(hw,
-					   IGP01E1000_PHY_PORT_CONFIG, data);
+			ret_val = e1e_wphy(hw, IGP01E1000_PHY_PORT_CONFIG,
+					   data);
 			if (ret_val)
 				return ret_val;
 
@@ -1315,8 +1313,7 @@ s32 e1000e_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 				/* We didn't get link.
 				 * Reset the DSP and cross our fingers.
 				 */
-				ret_val = e1e_wphy(hw,
-						   M88E1000_PHY_PAGE_SELECT,
+				ret_val = e1e_wphy(hw, M88E1000_PHY_PAGE_SELECT,
 						   0x001d);
 				if (ret_val)
 					return ret_val;
@@ -1518,25 +1515,25 @@ s32 e1000e_set_d3_lplu_state(struct e1000_hw *hw, bool active)
 		 * SmartSpeed, so performance is maintained.
 		 */
 		if (phy->smart_speed == e1000_smart_speed_on) {
-			ret_val = e1e_rphy(hw,
-					   IGP01E1000_PHY_PORT_CONFIG, &data);
+			ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CONFIG,
+					   &data);
 			if (ret_val)
 				return ret_val;
 
 			data |= IGP01E1000_PSCFR_SMART_SPEED;
-			ret_val = e1e_wphy(hw,
-					   IGP01E1000_PHY_PORT_CONFIG, data);
+			ret_val = e1e_wphy(hw, IGP01E1000_PHY_PORT_CONFIG,
+					   data);
 			if (ret_val)
 				return ret_val;
 		} else if (phy->smart_speed == e1000_smart_speed_off) {
-			ret_val = e1e_rphy(hw,
-					   IGP01E1000_PHY_PORT_CONFIG, &data);
+			ret_val = e1e_rphy(hw, IGP01E1000_PHY_PORT_CONFIG,
+					   &data);
 			if (ret_val)
 				return ret_val;
 
 			data &= ~IGP01E1000_PSCFR_SMART_SPEED;
-			ret_val = e1e_wphy(hw,
-					   IGP01E1000_PHY_PORT_CONFIG, data);
+			ret_val = e1e_wphy(hw, IGP01E1000_PHY_PORT_CONFIG,
+					   data);
 			if (ret_val)
 				return ret_val;
 		}
@@ -2766,6 +2763,7 @@ static s32 __e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data,
 		if (ret_val)
 			return ret_val;
 	}
+
 	/* Page 800 works differently than the rest so it has its own func */
 	if (page == BM_WUC_PAGE) {
 		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, data,
@@ -2872,6 +2870,7 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 		if (ret_val)
 			return ret_val;
 	}
+
 	/* Page 800 works differently than the rest so it has its own func */
 	if (page == BM_WUC_PAGE) {
 		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, &data,
@@ -2897,6 +2896,7 @@ static s32 __e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data,
 		    (hw->phy.addr == 2) &&
 		    !(MAX_PHY_REG_ADDRESS & reg) && (data & (1 << 11))) {
 			u16 data2 = 0x7EFF;
+
 			ret_val = e1000_access_phy_debug_regs_hv(hw,
 								 (1 << 6) | 0x3,
 								 &data2, false);

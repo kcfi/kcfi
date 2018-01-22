@@ -1,5 +1,5 @@
 /* Intel PRO/1000 Linux driver
- * Copyright(c) 1999 - 2015 Intel Corporation.
+ * Copyright(c) 1999 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -36,7 +36,7 @@ s32 e1000e_get_bus_info_pcie(struct e1000_hw *hw)
 	struct e1000_adapter *adapter = hw->adapter;
 	u16 pcie_link_status, cap_offset;
 
-	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
+	cap_offset = adapter->pdev->pcie_cap;
 	if (!cap_offset) {
 		bus->width = e1000_bus_width_unknown;
 	} else {
@@ -787,7 +787,6 @@ static s32 e1000_commit_fc_settings_generic(struct e1000_hw *hw)
 	default:
 		e_dbg("Flow control param set incorrectly\n");
 		return -E1000_ERR_CONFIG;
-		break;
 	}
 
 	ew32(TXCW, txcw);
@@ -1798,35 +1797,4 @@ void e1000e_update_adaptive(struct e1000_hw *hw)
 			ew32(AIT, 0);
 		}
 	}
-}
-
-/**
- *  e1000e_validate_mdi_setting_generic - Verify MDI/MDIx settings
- *  @hw: pointer to the HW structure
- *
- *  Verify that when not using auto-negotiation that MDI/MDIx is correctly
- *  set, which is forced to MDI mode only.
- **/
-s32 e1000e_validate_mdi_setting_generic(struct e1000_hw *hw)
-{
-	if (!hw->mac.autoneg && (hw->phy.mdix == 0 || hw->phy.mdix == 3)) {
-		e_dbg("Invalid MDI setting detected\n");
-		hw->phy.mdix = 1;
-		return -E1000_ERR_CONFIG;
-	}
-
-	return 0;
-}
-
-/**
- *  e1000e_validate_mdi_setting_crossover_generic - Verify MDI/MDIx settings
- *  @hw: pointer to the HW structure
- *
- *  Validate the MDI/MDIx setting, allowing for auto-crossover during forced
- *  operation.
- **/
-s32 e1000e_validate_mdi_setting_crossover_generic(struct e1000_hw
-						  __always_unused *hw)
-{
-	return 0;
 }

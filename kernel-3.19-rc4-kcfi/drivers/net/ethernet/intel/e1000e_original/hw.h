@@ -1,5 +1,5 @@
 /* Intel PRO/1000 Linux driver
- * Copyright(c) 1999 - 2015 Intel Corporation.
+ * Copyright(c) 1999 - 2014 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -19,8 +19,8 @@
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  */
 
-#ifndef _E1000E_HW_H_
-#define _E1000E_HW_H_
+#ifndef _E1000_HW_H_
+#define _E1000_HW_H_
 
 #include "regs.h"
 #include "defines.h"
@@ -87,15 +87,6 @@ struct e1000_hw;
 #define E1000_DEV_ID_PCH_I218_V2		0x15A1
 #define E1000_DEV_ID_PCH_I218_LM3		0x15A2	/* Wildcat Point PCH */
 #define E1000_DEV_ID_PCH_I218_V3		0x15A3	/* Wildcat Point PCH */
-#define E1000_DEV_ID_PCH_SPT_I219_LM		0x156F	/* Sunrise Point PCH */
-#define E1000_DEV_ID_PCH_SPT_I219_V		0x1570	/* Sunrise Point PCH */
-#define E1000_DEV_ID_PCH_SPT_I219_LM2		0x15B7	/* Sunrise Point-H PCH */
-#define E1000_DEV_ID_PCH_SPT_I219_V2		0x15B8	/* Sunrise Point-H PCH */
-#define E1000_DEV_ID_PCH_LBG_I219_LM3		0x15B9	/* LEWISBURG PCH */
-#define E1000_DEV_ID_PCH_SPT_I219_LM4		0x15D7
-#define E1000_DEV_ID_PCH_SPT_I219_V4		0x15D8
-#define E1000_DEV_ID_PCH_SPT_I219_LM5		0x15E3
-#define E1000_DEV_ID_PCH_SPT_I219_V5		0x15D6
 
 #define E1000_REVISION_4	4
 
@@ -117,7 +108,6 @@ enum e1000_mac_type {
 	e1000_pchlan,
 	e1000_pch2lan,
 	e1000_pch_lpt,
-	e1000_pch_spt,
 };
 
 enum e1000_media_type {
@@ -163,7 +153,6 @@ enum e1000_bus_width {
 	e1000_bus_width_pcie_x1,
 	e1000_bus_width_pcie_x2,
 	e1000_bus_width_pcie_x4 = 4,
-	e1000_bus_width_pcie_x8 = 8,
 	e1000_bus_width_32,
 	e1000_bus_width_64,
 	e1000_bus_width_reserved
@@ -209,15 +198,6 @@ enum e1000_serdes_link_state {
 	e1000_serdes_link_forced_up
 };
 
-#ifndef __le16
-#define __le16 u16
-#endif
-#ifndef __le32
-#define __le32 u32
-#endif
-#ifndef __le64
-#define __le64 u64
-#endif
 /* Receive Descriptor - Extended */
 union e1000_rx_desc_extended {
 	struct {
@@ -226,21 +206,21 @@ union e1000_rx_desc_extended {
 	} read;
 	struct {
 		struct {
-			__le32 mrq;	/* Multiple Rx Queues */
+			__le32 mrq;	      /* Multiple Rx Queues */
 			union {
-				__le32 rss;	/* RSS Hash */
+				__le32 rss;	    /* RSS Hash */
 				struct {
-					__le16 ip_id;	/* IP id */
-					__le16 csum;	/* Packet Checksum */
+					__le16 ip_id;  /* IP id */
+					__le16 csum;   /* Packet Checksum */
 				} csum_ip;
 			} hi_dword;
 		} lower;
 		struct {
-			__le32 status_error;	/* ext status/error */
+			__le32 status_error;     /* ext status/error */
 			__le16 length;
-			__le16 vlan;	/* VLAN tag */
+			__le16 vlan;	     /* VLAN tag */
 		} upper;
-	} wb;			/* writeback */
+	} wb;  /* writeback */
 };
 
 #define MAX_PS_BUFFERS 4
@@ -256,19 +236,19 @@ union e1000_rx_desc_packet_split {
 	} read;
 	struct {
 		struct {
-			__le32 mrq;	/* Multiple Rx Queues */
+			__le32 mrq;	      /* Multiple Rx Queues */
 			union {
-				__le32 rss;	/* RSS Hash */
+				__le32 rss;	      /* RSS Hash */
 				struct {
-					__le16 ip_id;	/* IP id */
-					__le16 csum;	/* Packet Checksum */
+					__le16 ip_id;    /* IP id */
+					__le16 csum;     /* Packet Checksum */
 				} csum_ip;
 			} hi_dword;
 		} lower;
 		struct {
-			__le32 status_error;	/* ext status/error */
-			__le16 length0;	/* length of buffer 0 */
-			__le16 vlan;	/* VLAN tag */
+			__le32 status_error;     /* ext status/error */
+			__le16 length0;	  /* length of buffer 0 */
+			__le16 vlan;	     /* VLAN tag */
 		} middle;
 		struct {
 			__le16 header_status;
@@ -276,16 +256,16 @@ union e1000_rx_desc_packet_split {
 			__le16 length[PS_PAGE_BUFFERS];
 		} upper;
 		__le64 reserved;
-	} wb;			/* writeback */
+	} wb; /* writeback */
 };
 
 /* Transmit Descriptor */
 struct e1000_tx_desc {
-	__le64 buffer_addr;	/* Address of the descriptor's data buffer */
+	__le64 buffer_addr;      /* Address of the descriptor's data buffer */
 	union {
 		__le32 data;
 		struct {
-			__le16 length;	/* Data buffer length */
+			__le16 length;    /* Data buffer length */
 			u8 cso;	/* Checksum offset */
 			u8 cmd;	/* Descriptor control */
 		} flags;
@@ -293,7 +273,7 @@ struct e1000_tx_desc {
 	union {
 		__le32 data;
 		struct {
-			u8 status;	/* Descriptor status */
+			u8 status;     /* Descriptor status */
 			u8 css;	/* Checksum start */
 			__le16 special;
 		} fields;
@@ -305,37 +285,37 @@ struct e1000_context_desc {
 	union {
 		__le32 ip_config;
 		struct {
-			u8 ipcss;	/* IP checksum start */
-			u8 ipcso;	/* IP checksum offset */
-			__le16 ipcse;	/* IP checksum end */
+			u8 ipcss;      /* IP checksum start */
+			u8 ipcso;      /* IP checksum offset */
+			__le16 ipcse;     /* IP checksum end */
 		} ip_fields;
 	} lower_setup;
 	union {
 		__le32 tcp_config;
 		struct {
-			u8 tucss;	/* TCP checksum start */
-			u8 tucso;	/* TCP checksum offset */
-			__le16 tucse;	/* TCP checksum end */
+			u8 tucss;      /* TCP checksum start */
+			u8 tucso;      /* TCP checksum offset */
+			__le16 tucse;     /* TCP checksum end */
 		} tcp_fields;
 	} upper_setup;
 	__le32 cmd_and_length;
 	union {
 		__le32 data;
 		struct {
-			u8 status;	/* Descriptor status */
-			u8 hdr_len;	/* Header length */
-			__le16 mss;	/* Maximum segment size */
+			u8 status;     /* Descriptor status */
+			u8 hdr_len;    /* Header length */
+			__le16 mss;       /* Maximum segment size */
 		} fields;
 	} tcp_seg_setup;
 };
 
 /* Offload data descriptor */
 struct e1000_data_desc {
-	__le64 buffer_addr;	/* Address of the descriptor's buffer address */
+	__le64 buffer_addr;   /* Address of the descriptor's buffer address */
 	union {
 		__le32 data;
 		struct {
-			__le16 length;	/* Data buffer length */
+			__le16 length;    /* Data buffer length */
 			u8 typ_len_ext;
 			u8 cmd;
 		} flags;
@@ -343,8 +323,8 @@ struct e1000_data_desc {
 	union {
 		__le32 data;
 		struct {
-			u8 status;	/* Descriptor status */
-			u8 popts;	/* Packet Options */
+			u8 status;     /* Descriptor status */
+			u8 popts;      /* Packet Options */
 			__le16 special;
 		} fields;
 	} upper;
@@ -469,30 +449,29 @@ struct e1000_host_mng_command_info {
 
 /* Function pointers for the MAC. */
 struct e1000_mac_operations {
-	s32 (*id_led_init) (struct e1000_hw *);
-	s32 (*blink_led) (struct e1000_hw *);
-	bool (*check_mng_mode) (struct e1000_hw *);
-	s32 (*check_for_link) (struct e1000_hw *);
-	s32 (*cleanup_led) (struct e1000_hw *);
-	void (*clear_hw_cntrs) (struct e1000_hw *);
-	void (*clear_vfta) (struct e1000_hw *);
-	s32 (*get_bus_info) (struct e1000_hw *);
-	void (*set_lan_id) (struct e1000_hw *);
-	s32 (*get_link_up_info) (struct e1000_hw *, u16 *, u16 *);
-	s32 (*led_on) (struct e1000_hw *);
-	s32 (*led_off) (struct e1000_hw *);
-	void (*update_mc_addr_list) (struct e1000_hw *, u8 *, u32);
-	s32 (*reset_hw) (struct e1000_hw *);
-	s32 (*init_hw) (struct e1000_hw *);
-	s32 (*setup_link) (struct e1000_hw *);
-	s32 (*setup_physical_interface) (struct e1000_hw *);
-	s32 (*setup_led) (struct e1000_hw *);
-	void (*write_vfta) (struct e1000_hw *, u32, u32);
-	void (*config_collision_dist) (struct e1000_hw *);
-	int (*rar_set) (struct e1000_hw *, u8 *, u32);
-	u32 (*rar_get_count) (struct e1000_hw *);
-	s32 (*read_mac_addr) (struct e1000_hw *);
-	s32 (*validate_mdi_setting) (struct e1000_hw *);
+	s32  (*id_led_init)(struct e1000_hw *);
+	s32  (*blink_led)(struct e1000_hw *);
+	bool (*check_mng_mode)(struct e1000_hw *);
+	s32  (*check_for_link)(struct e1000_hw *);
+	s32  (*cleanup_led)(struct e1000_hw *);
+	void (*clear_hw_cntrs)(struct e1000_hw *);
+	void (*clear_vfta)(struct e1000_hw *);
+	s32  (*get_bus_info)(struct e1000_hw *);
+	void (*set_lan_id)(struct e1000_hw *);
+	s32  (*get_link_up_info)(struct e1000_hw *, u16 *, u16 *);
+	s32  (*led_on)(struct e1000_hw *);
+	s32  (*led_off)(struct e1000_hw *);
+	void (*update_mc_addr_list)(struct e1000_hw *, u8 *, u32);
+	s32  (*reset_hw)(struct e1000_hw *);
+	s32  (*init_hw)(struct e1000_hw *);
+	s32  (*setup_link)(struct e1000_hw *);
+	s32  (*setup_physical_interface)(struct e1000_hw *);
+	s32  (*setup_led)(struct e1000_hw *);
+	void (*write_vfta)(struct e1000_hw *, u32, u32);
+	void (*config_collision_dist)(struct e1000_hw *);
+	int  (*rar_set)(struct e1000_hw *, u8 *, u32);
+	s32  (*read_mac_addr)(struct e1000_hw *);
+	u32  (*rar_get_count)(struct e1000_hw *);
 };
 
 /* When to use various PHY register access functions:
@@ -510,40 +489,40 @@ struct e1000_mac_operations {
  *
  */
 struct e1000_phy_operations {
-	s32 (*acquire) (struct e1000_hw *);
-	s32 (*cfg_on_link_up) (struct e1000_hw *);
-	s32 (*check_polarity) (struct e1000_hw *);
-	s32 (*check_reset_block) (struct e1000_hw *);
-	s32 (*commit) (struct e1000_hw *);
-	s32 (*force_speed_duplex) (struct e1000_hw *);
-	s32 (*get_cfg_done) (struct e1000_hw *hw);
-	s32 (*get_cable_length) (struct e1000_hw *);
-	s32 (*get_info) (struct e1000_hw *);
-	s32 (*set_page) (struct e1000_hw *, u16);
-	s32 (*read_reg) (struct e1000_hw *, u32, u16 *);
-	s32 (*read_reg_locked) (struct e1000_hw *, u32, u16 *);
-	s32 (*read_reg_page) (struct e1000_hw *, u32, u16 *);
-	void (*release) (struct e1000_hw *);
-	s32 (*reset) (struct e1000_hw *);
-	s32 (*set_d0_lplu_state) (struct e1000_hw *, bool);
-	s32 (*set_d3_lplu_state) (struct e1000_hw *, bool);
-	s32 (*write_reg) (struct e1000_hw *, u32, u16);
-	s32 (*write_reg_locked) (struct e1000_hw *, u32, u16);
-	s32 (*write_reg_page) (struct e1000_hw *, u32, u16);
-	void (*power_up) (struct e1000_hw *);
-	void (*power_down) (struct e1000_hw *);
+	s32  (*acquire)(struct e1000_hw *);
+	s32  (*cfg_on_link_up)(struct e1000_hw *);
+	s32  (*check_polarity)(struct e1000_hw *);
+	s32  (*check_reset_block)(struct e1000_hw *);
+	s32  (*commit)(struct e1000_hw *);
+	s32  (*force_speed_duplex)(struct e1000_hw *);
+	s32  (*get_cfg_done)(struct e1000_hw *hw);
+	s32  (*get_cable_length)(struct e1000_hw *);
+	s32  (*get_info)(struct e1000_hw *);
+	s32  (*set_page)(struct e1000_hw *, u16);
+	s32  (*read_reg)(struct e1000_hw *, u32, u16 *);
+	s32  (*read_reg_locked)(struct e1000_hw *, u32, u16 *);
+	s32  (*read_reg_page)(struct e1000_hw *, u32, u16 *);
+	void (*release)(struct e1000_hw *);
+	s32  (*reset)(struct e1000_hw *);
+	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
+	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
+	s32  (*write_reg)(struct e1000_hw *, u32, u16);
+	s32  (*write_reg_locked)(struct e1000_hw *, u32, u16);
+	s32  (*write_reg_page)(struct e1000_hw *, u32, u16);
+	void (*power_up)(struct e1000_hw *);
+	void (*power_down)(struct e1000_hw *);
 };
 
 /* Function pointers for the NVM. */
 struct e1000_nvm_operations {
-	s32 (*acquire) (struct e1000_hw *);
-	s32 (*read) (struct e1000_hw *, u16, u16, u16 *);
-	void (*release) (struct e1000_hw *);
-	void (*reload) (struct e1000_hw *);
-	s32 (*update) (struct e1000_hw *);
-	s32 (*valid_led_default) (struct e1000_hw *, u16 *);
-	s32 (*validate) (struct e1000_hw *);
-	s32 (*write) (struct e1000_hw *, u16, u16, u16 *);
+	s32  (*acquire)(struct e1000_hw *);
+	s32  (*read)(struct e1000_hw *, u16, u16, u16 *);
+	void (*release)(struct e1000_hw *);
+	void (*reload)(struct e1000_hw *);
+	s32  (*update)(struct e1000_hw *);
+	s32  (*valid_led_default)(struct e1000_hw *, u16 *);
+	s32  (*validate)(struct e1000_hw *);
+	s32  (*write)(struct e1000_hw *, u16, u16, u16 *);
 };
 
 struct e1000_mac_info {
@@ -644,14 +623,14 @@ struct e1000_bus_info {
 };
 
 struct e1000_fc_info {
-	u32 high_water;		/* Flow control high-water mark */
-	u32 low_water;		/* Flow control low-water mark */
-	u16 pause_time;		/* Flow control pause timer */
-	u16 refresh_time;	/* Flow control refresh timer */
-	bool send_xon;		/* Flow control send XON */
-	bool strict_ieee;	/* Strict IEEE mode */
-	enum e1000_fc_mode current_mode;	/* FC mode in effect */
-	enum e1000_fc_mode requested_mode;	/* FC mode requested by caller */
+	u32 high_water;          /* Flow control high-water mark */
+	u32 low_water;           /* Flow control low-water mark */
+	u16 pause_time;          /* Flow control pause timer */
+	u16 refresh_time;        /* Flow control refresh timer */
+	bool send_xon;           /* Flow control send XON */
+	bool strict_ieee;        /* Strict IEEE mode */
+	enum e1000_fc_mode current_mode; /* FC mode in effect */
+	enum e1000_fc_mode requested_mode; /* FC mode requested by caller */
 };
 
 struct e1000_dev_spec_82571 {
@@ -684,10 +663,6 @@ struct e1000_dev_spec_ich8lan {
 	bool eee_disable;
 	u16 eee_lp_ability;
 	enum e1000_ulp_state ulp_state;
-#ifdef DYNAMIC_LTR_SUPPORT
-	u16 lat_enc;
-	u16 max_ltr_enc;
-#endif
 };
 
 struct e1000_hw {
