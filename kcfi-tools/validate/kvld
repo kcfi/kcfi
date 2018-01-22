@@ -1,0 +1,98 @@
+#!/usr/bin/awk -f
+
+#
+# 'kvld' Copyright (C) 2015 Brown University
+#
+# This software was developed by Vasileios P. Kemerlis <vpk@cs.brown.edu>
+# at Brown University, Providence, RI, USA, in December 2015.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+#
+# 'kvld' (x86-64 kCFI validator)
+#
+# 'kvld' is a simple AWK script that processes the output of `objdump -d'
+# (GNU binutils) -- when the latter is applied on a kCFI-protected
+# ELF binary -- and spits code snippets that are not confined, followed
+# by an instrumentation summary.
+#
+# Usage: objdump -d <kobj> | cut -f3 | ./kvld
+#
+# <kobj>:
+#	- vmlinux	(Linux kernel image; decompressed)
+#	- *.ko		(Linux kernel module)
+#	- *.o		(object file)
+#
+
+$0 == ""	{ next }
+
+$0 ~ />:$/	{
+			fun = substr($0, 1, length($0)-1)
+			wnd[6] = ""
+			wnd[5] = ""
+			wnd[4] = ""
+			wnd[3] = ""
+			wnd[2] = ""
+			wnd[1] = ""
+			wnd[0] = ""
+		}
+
+		{
+			wnd[6] = wnd[5]
+			wnd[5] = wnd[4]
+			wnd[4] = wnd[3]
+			wnd[3] = wnd[2]
+			wnd[2] = wnd[1]
+			wnd[1] = wnd[0]
+			wnd[0] = $0
+		}
+
+($0 ~ /\*/ && $0 ~ /^call/) {
+			if(	((wnd[2] ~ /^cmpl/)	&&
+				(wnd[1] ~ /^jne/))      ||
+                                ((wnd[5] ~ /^push/)     &&
+				(wnd[4] ~ /^mov/)	&&
+				(wnd[3] ~ /^cmpl/)      &&
+        			(wnd[2] ~ /^jne/)	&&
+				(wnd[1] ~ /^pop/)))
+				ccall++
+			else {
+				print "---[" fun "]---"
+				if (wnd[6] != "")
+					print wnd[6]
+				if (wnd[5] != "")
+					print wnd[5]
+				if (wnd[4] != "")
+					print wnd[4]
+				if (wnd[3] != "")
+					print wnd[3]
+				if (wnd[2] != "")
+					print wnd[2]
+				if (wnd[1] != "")
+					print wnd[1]
+				print $0
+				print ""
+					
+				ucall++
+			}
+		}
+
+END		{
+			print "x86-64 kCFI validator"
+			print "---------------------"
+			print "[-] unconfined"
+			print "    'call':" ucall
+			print "[+] confined"
+			print "    'call':" ccall
+		}
