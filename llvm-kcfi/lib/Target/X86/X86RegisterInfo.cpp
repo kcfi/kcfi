@@ -44,6 +44,8 @@ using namespace llvm;
 #define GET_REGINFO_TARGET_DESC
 #include "X86GenRegisterInfo.inc"
 
+extern cl::opt<bool> DisableCFI;
+
 cl::opt<bool>
 ForceStackAlign("force-align-stack",
                  cl::desc("Force align the stack to the minimum alignment"
@@ -344,6 +346,11 @@ X86RegisterInfo::getNoPreservedMask() const {
 BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
   const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
+
+  if (!DisableCFI) {
+    for(MCSubRegIterator I(X86::R11, this, true); I.isValid(); ++I)
+      Reserved.set(*I);
+  }
 
   // Set the stack-pointer register and its aliases as reserved.
   for (MCSubRegIterator I(X86::RSP, this, /*IncludeSelf=*/true); I.isValid();

@@ -62,6 +62,10 @@ public:
   void addNodeToList(MachineBasicBlock* MBB);
   void removeNodeFromList(MachineBasicBlock* MBB);
   void deleteNode(MachineBasicBlock *MBB);
+  void setRetCFIErrorMBB(MachineBasicBlock* CFIBB);
+  void setCallCFIErrorMBB(MachineBasicBlock* CFIBB);
+  MachineBasicBlock *getRetCFIErrorMBB();
+  MachineBasicBlock *getCallCFIErrorMBB();
 private:
   void createNode(const MachineBasicBlock &);
 };
@@ -89,6 +93,9 @@ class MachineFunction {
   const TargetSubtargetInfo *STI;
   MCContext &Ctx;
   MachineModuleInfo &MMI;
+  MachineBasicBlock *CallCFIErrorMBB = NULL;
+  MachineBasicBlock *RetCFIErrorMBB = NULL;
+  MachineBasicBlock *CFIRetMBB = NULL;
 
   // RegInfo - Information about each register in use in the function.
   MachineRegisterInfo *RegInfo;
@@ -102,7 +109,7 @@ class MachineFunction {
 
   // Keep track of constants which are spilled to memory
   MachineConstantPool *ConstantPool;
-  
+
   // Keep track of jump tables for switch instructions
   MachineJumpTableInfo *JumpTableInfo;
 
@@ -151,6 +158,22 @@ public:
   MachineFunction(const Function *Fn, const TargetMachine &TM,
                   unsigned FunctionNum, MachineModuleInfo &MMI);
   ~MachineFunction();
+
+  void setRetCFIErrorMBB(MachineBasicBlock* CFIBB){
+    RetCFIErrorMBB = CFIBB;
+  }
+
+  MachineBasicBlock* getRetCFIErrorMBB(){
+    return RetCFIErrorMBB;
+  }
+
+  void setCallCFIErrorMBB(MachineBasicBlock* CFIBB){
+    CallCFIErrorMBB = CFIBB;
+  }
+
+  MachineBasicBlock* getCallCFIErrorMBB(){
+    return CallCFIErrorMBB;
+  }
 
   MachineModuleInfo &getMMI() const { return MMI; }
   MCContext &getContext() const { return Ctx; }

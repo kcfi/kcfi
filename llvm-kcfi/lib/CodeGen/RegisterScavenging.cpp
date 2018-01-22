@@ -176,6 +176,9 @@ void RegScavenger::forward() {
 
   MachineInstr *MI = MBBI;
 
+  if(MI->getCFIFlag() != MachineInstr::none &&
+     MI->getCFIFlag() != MachineInstr::checkedCall) return;
+
   for (SmallVectorImpl<ScavengedInfo>::iterator I = Scavenged.begin(),
          IE = Scavenged.end(); I != IE; ++I) {
     if (I->Restore != MI)
@@ -261,7 +264,7 @@ bool RegScavenger::isRegUsed(unsigned Reg, bool includeReserved) const {
 unsigned RegScavenger::FindUnusedReg(const TargetRegisterClass *RC) const {
   for (TargetRegisterClass::iterator I = RC->begin(), E = RC->end();
        I != E; ++I)
-    if (!isRegUsed(*I)) {
+    if (!isRegUsed(*I, true)) {
       DEBUG(dbgs() << "Scavenger found unused reg: " << TRI->getName(*I) <<
             "\n");
       return *I;

@@ -80,6 +80,10 @@ FunctionPass *createX86WinEHStatePass();
 /// must run after prologue/epilogue insertion and before lowering
 /// the MachineInstr to MC.
 FunctionPass *createX86ExpandPseudoPass();
+
+/// Return a Machine IR with instrumentated indirect calls and rets
+/// that check for CFI correctness.
+FunctionPass *createCFIInstrumentation();
 } // End llvm namespace
 
 #endif

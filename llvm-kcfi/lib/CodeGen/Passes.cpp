@@ -12,6 +12,9 @@
 //
 //===---------------------------------------------------------------------===//
 
+#include <fstream>
+#include <list>
+#include "llvm/CodeGen/CFGforCFI.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -27,7 +30,6 @@
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/SymbolRewriter.h"
-
 using namespace llvm;
 
 static cl::opt<bool> DisablePostRA("disable-post-ra", cl::Hidden,
@@ -87,6 +89,42 @@ static cl::opt<bool> VerifyMachineCode("verify-machineinstrs", cl::Hidden,
     cl::desc("Verify generated machine code"),
     cl::init(false),
     cl::ZeroOrMore);
+cl::opt<bool> CFICoarse("cfi-coarse", cl::Hidden,
+    cl::desc("Use coarse-grained cfg"),
+    cl::init(false));
+cl::opt<bool> CFIv("cfi-verbose", cl:: Hidden,
+    cl::desc("Verbose CFI-related compilation messages"),
+    cl::init(false));
+cl::opt<bool> CFIMapDecls("cfi-map-declarations", cl:: Hidden,
+    cl::desc("Map function declarations while building cfg"),
+    cl::init(false));
+cl::opt<bool> CFIvv("cfi-extra-verbose", cl:: Hidden,
+    cl::desc("Ultra verbose CFI-related compilation messages"),
+    cl::init(false));
+cl::opt<bool> CFINoChecks("cfi-no-checks", cl:: Hidden,
+    cl::desc("Generate binary with CFI tags, but no guards"),
+    cl::init(false));
+cl::opt<bool> CFICGD("cfi-cgd", cl:: Hidden,
+    cl::desc("clone functions to isolate indirect/direct calls (CGD Opt)"),
+    cl::init(false));
+cl::opt<bool> CFIBuildCFG("cfi-build-cfg", cl:: Hidden,
+    cl::desc("Builds CFG information required for CFI instrumentation"),
+    cl::init(false));
+cl::opt<bool> MasterDisableCFI("master-disable-cfi", cl::Hidden,
+    cl::desc("Disable CFI without breaking compatibility with other \
+             disable-cfi on subdirectories"), cl::init(false));
+cl::opt<bool> DisableCFI("disable-cfi", cl::Hidden,
+    cl::desc("Disable CFI instrumentation"), cl::init(false));
+cl::opt<bool> CFIFwd("cfi-fwd", cl::Hidden,
+    cl::desc("enable forward edge cfi"), cl::init(false));
+cl::opt<bool> CFIWhiteList("cfi-whitelist", cl::Hidden,
+    cl::desc("Enable CFI destination whitelisting"), cl::init(false));
+
+std::list<std::string> ICallsWhiteList;
+std::list<std::string> RetsWhiteList;
+
+CFICFG cfi;
+CFIUtils u;
 
 static cl::opt<std::string>
 PrintMachineInstrs("print-machineinstrs", cl::ValueOptional,
@@ -409,6 +447,13 @@ void TargetPassConfig::addIRPasses() {
 
   if (getOptLevel() != CodeGenOpt::None && !DisablePartialLibcallInlining)
     addPass(createPartiallyInlineLibCallsPass());
+
+  if(MasterDisableCFI) DisableCFI = true;
+  if(!DisableCFI){
+    if(CFIWhiteList) loadCFIWL();
+    cfi.loadCFG();
+    addPass(&CFIID);
+  }
 }
 
 /// Turn exception handling constructs into something the code generators can
@@ -799,5 +844,37 @@ void TargetPassConfig::addBlockPlacement() {
     // Run a separate pass to collect block placement statistics.
     if (EnableBlockPlacementStats)
       addPass(&MachineBlockPlacementStatsID);
+  }
+}
+
+// whitelists are usefull for compiling unsupported code
+void TargetPassConfig::loadCFIWL(){
+  std::ifstream RetWhiteListFile("retwhitelist.txt");
+  std::ifstream ICallWhiteListFile("icallwhitelist.txt");
+  std::string line;
+  bool retwl = true, icallswl = true;
+
+  // reading RetWhiteListFile
+  if(std::getline(RetWhiteListFile, line)){
+    RetsWhiteList.push_back(line);
+    while(std::getline(RetWhiteListFile, line)) RetsWhiteList.push_back(line);
+  } else {
+    retwl = false;
+  }
+
+  // reading ICallWhiteListFile
+  if(std::getline(ICallWhiteListFile, line)){
+    ICallsWhiteList.push_back(line);
+    while(std::getline(ICallWhiteListFile, line))
+      ICallsWhiteList.push_back(line);
+  } else {
+    icallswl = false;
+  }
+  RetWhiteListFile.close();
+  ICallWhiteListFile.close();
+  if(!retwl && !icallswl){
+    u.warn("Missing or empty whitelist files");
+    u.warn("cfi-whitelist will be disabled for faster compilation");
+    CFIWhiteList = false;
   }
 }

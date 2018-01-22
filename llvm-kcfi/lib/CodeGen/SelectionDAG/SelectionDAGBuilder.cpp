@@ -63,6 +63,7 @@
 #include "llvm/Target/TargetSelectionDAGInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 #include <algorithm>
+#include  "../lib/Target/X86/X86ISelLowering.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "isel"
@@ -892,6 +893,10 @@ SDValue SelectionDAGBuilder::getControlRoot() {
   return Root;
 }
 
+extern cl::opt<bool>DisableCFI;
+extern cl::opt<bool>CFIBuildCFG;
+extern CFIUtils u;
+
 void SelectionDAGBuilder::visit(const Instruction &I) {
   // Set up outgoing PHI node register values before emitting the terminator.
   if (isa<TerminatorInst>(&I))
@@ -900,11 +905,30 @@ void SelectionDAGBuilder::visit(const Instruction &I) {
   ++SDNodeOrder;
 
   CurInst = &I;
-
   visit(I.getOpcode(), I);
+  if(!DisableCFI){
+    const CallInst *c = dyn_cast_or_null<CallInst>(&I);
+    if(c){
+      if(u.isICall(c)){
+        ilist<SDNode>::iterator last = DAG.allnodes_last();
+        ilist<SDNode>::iterator first = DAG.allnodes_first();
+        for(; last != first; last--){
+          if(last->getOpcode() == X86ISD::CALL){
+            last->CFITag = c->getCFITag();
+            break;
+          }
+          else if(last->getOpcode() == X86ISD::TC_RETURN){
+            last->CFITag = c->getCFITag();
+            break;
+          }
+        }
+      }
+    }
+  }
 
-  if (!isa<TerminatorInst>(&I) && !HasTailCall)
+  if (!isa<TerminatorInst>(&I) && !HasTailCall){
     CopyToExportRegsIfNeeded(&I);
+  }
 
   CurInst = nullptr;
 }

@@ -27,6 +27,7 @@
 #include "llvm/IR/GlobalObject.h"
 #include "llvm/IR/OperandTraits.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/CodeGen/CFGforCFI.h"
 
 namespace llvm {
 
@@ -69,6 +70,9 @@ private:
   ValueSymbolTable *SymTab;               ///< Symbol table of args/instructions
   AttributeSet AttributeSets;             ///< Parameter attributes
   FunctionType *Ty;
+  unsigned int CFINodeId = 0, CFIClusterId = 0;
+  bool isLeaf = false;
+  Function * clone = NULL;
 
   /*
    * Value::SubclassData
@@ -127,6 +131,27 @@ public:
 
   /// \brief Provide fast operand accessors
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
+
+  void setCFINode(CFINode n){
+    this->CFINodeId = n.id;
+  }
+
+  unsigned int getCFINode() const{
+    return this->CFINodeId;
+  }
+
+  void setCFICluster(CFICluster c){
+    this->CFIClusterId = c.id;
+  }
+
+  unsigned int getCFICluster() const{
+    return this->CFIClusterId;
+  }
+
+  void dumpCFIInfo() const{
+    fprintf(stderr, "Function %s CFINode: %x CFICluster: %x\n",
+            this->getName().str().c_str(), CFINodeId, CFIClusterId);
+  }
 
   /// \brief Get the personality function associated with this function.
   bool hasPersonalityFn() const { return getNumOperands() != 0; }

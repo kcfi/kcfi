@@ -25,8 +25,10 @@
 using namespace llvm;
 
 static cl::opt<bool> EnableMachineCombinerPass("x86-machine-combiner",
-                               cl::desc("Enable the machine combiner pass"),
-                               cl::init(true), cl::Hidden);
+                              cl::desc("Enable the machine combiner pass"),
+                              cl::init(true), cl::Hidden);
+
+extern cl::opt<bool> DisableCFI;
 
 extern "C" void LLVMInitializeX86Target() {
   // Register the target.
@@ -266,4 +268,6 @@ void X86PassConfig::addPreEmitPass() {
     addPass(createX86PadShortFunctions());
     addPass(createX86FixupLEAs());
   }
+
+  if (!DisableCFI) addPass(createCFIInstrumentation());
 }

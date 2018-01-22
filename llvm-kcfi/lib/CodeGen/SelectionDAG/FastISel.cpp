@@ -698,6 +698,7 @@ bool FastISel::lowerCallOperands(const CallInst *CI, unsigned ArgIdx,
   Type *RetTy = ForceRetVoidTy ? Type::getVoidTy(CI->getType()->getContext())
                                : CI->getType();
   CLI.setCallee(CI->getCallingConv(), RetTy, Callee, std::move(Args), NumArgs);
+  CLI.setCFITags(CI);
 
   return lowerCallTo(CLI);
 }
@@ -900,6 +901,7 @@ bool FastISel::lowerCallTo(const CallInst *CI, MCSymbol *Symbol,
 
   CallLoweringInfo CLI;
   CLI.setCallee(RetTy, FTy, Symbol, std::move(Args), CS, NumArgs);
+  CLI.setCFITags(CI);
 
   return lowerCallTo(CLI);
 }
@@ -1040,6 +1042,7 @@ bool FastISel::lowerCall(const CallInst *CI) {
   CallLoweringInfo CLI;
   CLI.setCallee(RetTy, FuncTy, CI->getCalledValue(), std::move(Args), CS)
       .setTailCall(IsTailCall);
+  CLI.setCFITags(CI);
 
   return lowerCallTo(CLI);
 }

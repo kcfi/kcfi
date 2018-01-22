@@ -2292,6 +2292,8 @@ public:
     SmallVector<SDValue, 32> OutVals;
     SmallVector<ISD::InputArg, 32> Ins;
 
+    unsigned int CFITag = 0;
+
     CallLoweringInfo(SelectionDAG &DAG)
       : RetTy(nullptr), RetSExt(false), RetZExt(false), IsVarArg(false),
         IsInReg(false), DoesNotReturn(false), IsReturnValueUsed(true),
@@ -2385,6 +2387,10 @@ public:
 
     ArgListTy &getArgs() {
       return Args;
+    }
+
+    void setCFITags(const CallInst *CI){
+      CFITag = CI->getCFITag();
     }
   };
 

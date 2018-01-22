@@ -67,6 +67,19 @@ public:
     BundledPred  = 1 << 1,              // Instruction has bundled predecessors.
     BundledSucc  = 1 << 2               // Instruction has bundled successors.
   };
+
+  enum CFIInstrFlag {
+    none         = 0,
+    tag          = 1,
+    loadPtrToRet = 2,
+    checkTag     = 3,
+    errorLoop    = 4,
+    checkedRet   = 5,
+    checkedCall  = 6,
+    CFIPrologue  = 7,
+    CFIEpilogue  = 8
+  };
+
 private:
   const MCInstrDesc *MCID;              // Instruction descriptor.
   MachineBasicBlock *Parent;            // Pointer to the owning basic block.
@@ -93,6 +106,9 @@ private:
 
   DebugLoc debugLoc;                    // Source line information.
 
+  CFIInstrFlag CFIFlag = MachineInstr::none;
+  unsigned int CFITag = 0;
+
   MachineInstr(const MachineInstr&) = delete;
   void operator=(const MachineInstr&) = delete;
   // Use MachineFunction::DeleteMachineInstr() instead.
@@ -117,6 +133,11 @@ private:
   friend class MachineFunction;
 
 public:
+  void setCFIFlag(CFIInstrFlag flag);
+  void setCFITag(unsigned int tag);
+  unsigned int getCFITag() const;
+  MachineInstr::CFIInstrFlag getCFIFlag();
+
   const MachineBasicBlock* getParent() const { return Parent; }
   MachineBasicBlock* getParent() { return Parent; }
 

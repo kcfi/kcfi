@@ -1321,6 +1321,7 @@ public:
 class CallInst : public Instruction {
   AttributeSet AttributeList; ///< parameter attributes for call
   FunctionType *FTy;
+  unsigned int CFITag = 0;
   CallInst(const CallInst &CI);
   void init(Value *Func, ArrayRef<Value *> Args, const Twine &NameStr) {
     init(cast<FunctionType>(
@@ -1352,6 +1353,19 @@ class CallInst : public Instruction {
 protected:
   CallInst *clone_impl() const override;
 public:
+  void setCFITag(unsigned int tag){
+    CFITag = tag;
+  }
+
+  unsigned int getCFITag() const {
+    return CFITag;
+  }
+
+  void dumpCFITags() const {
+    dump();
+    fprintf(stderr, "CFI Tags: %x\n", CFITag);
+  }
+
   static CallInst *Create(Value *Func,
                           ArrayRef<Value *> Args,
                           const Twine &NameStr = "",

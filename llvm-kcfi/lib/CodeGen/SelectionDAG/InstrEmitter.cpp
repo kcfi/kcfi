@@ -812,6 +812,10 @@ EmitMachineNode(SDNode *Node, bool IsClone, bool IsCloned,
   // happen before any custom inserter hook is called so that the
   // hook knows where in the block to insert the replacement code.
   MBB->insert(InsertPos, MIB);
+  if(MIB.getInstr()->isCall()){
+    MIB.getInstr()->setCFITag(Node->CFITag);
+  }
+
 
   // The MachineInstr may also define physregs instead of virtregs.  These
   // physreg values can reach other instructions in different ways:

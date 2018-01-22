@@ -7,6 +7,8 @@ add_llvm_library(LLVMCodeGen
   BranchFolding.cpp
   CalcSpillWeights.cpp
   CallingConvLower.cpp
+  CFGforCFI.cpp
+  CFI.cpp
   CodeGen.cpp
   CodeGenPrepare.cpp
   CoreCLRGC.cpp

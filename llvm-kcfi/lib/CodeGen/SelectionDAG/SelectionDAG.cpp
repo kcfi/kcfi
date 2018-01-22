@@ -6211,6 +6211,8 @@ void SelectionDAG::ReplaceAllUsesWith(SDNode *From, SDNode *To) {
            "Cannot use this version of ReplaceAllUsesWith!");
 #endif
 
+  To->CFITag = From->CFITag;
+
   // Handle the trivial case.
   if (From == To)
     return;

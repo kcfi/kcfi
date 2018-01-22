@@ -3091,6 +3091,9 @@ bool X86FastISel::fastLowerCall(CallLoweringInfo &CLI) {
     unsigned CallOpc = Is64Bit ? X86::CALL64r : X86::CALL32r;
     MIB = BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, TII.get(CallOpc))
       .addReg(CalleeOp);
+
+    MIB.getInstr()->setCFITag(CLI.CFITag);
+
   } else {
     // Direct call.
     assert(GV && "Not a direct call");
@@ -3118,6 +3121,8 @@ bool X86FastISel::fastLowerCall(CallLoweringInfo &CLI) {
     }
 
     MIB = BuildMI(*FuncInfo.MBB, FuncInfo.InsertPt, DbgLoc, TII.get(CallOpc));
+    MIB.getInstr()->setCFITag(CLI.CFITag);
+
     if (Symbol)
       MIB.addSym(Symbol, OpFlags);
     else

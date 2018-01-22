@@ -218,6 +218,7 @@ void initializePAEvalPass(PassRegistry &);
 void initializeOptimizePHIsPass(PassRegistry&);
 void initializePartiallyInlineLibCallsPass(PassRegistry&);
 void initializePEIPass(PassRegistry&);
+void initializeCFIPass(PassRegistry&);
 void initializePHIEliminationPass(PassRegistry&);
 void initializePartialInlinerPass(PassRegistry&);
 void initializePeepholeOptimizerPass(PassRegistry&);

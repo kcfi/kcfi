@@ -34,6 +34,7 @@ set(sources
   X86VZeroUpper.cpp
   X86FixupLEAs.cpp
   X86WinEHState.cpp
+  X86CFI.cpp
   )
 
 if( CMAKE_CL_64 )

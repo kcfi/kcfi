@@ -322,6 +322,9 @@ template<> struct simplify_type<SDUse> {
 /// Represents one node in the SelectionDAG.
 ///
 class SDNode : public FoldingSetNode, public ilist_node<SDNode> {
+public:
+  unsigned int CFITag;
+
 private:
   /// The operation that this node performs.
   int16_t NodeType;

@@ -204,6 +204,25 @@ void MachineOperand::ChangeToRegister(unsigned Reg, bool isDef, bool isImp,
     RegInfo->addRegOperandToUseList(this);
 }
 
+// Sets tags for call instructions
+void MachineInstr::setCFITag(unsigned int tag){
+  CFITag = tag;
+}
+
+unsigned int MachineInstr::getCFITag() const{
+  return CFITag;
+}
+
+// Sets a flag for CFI instrumentation
+void MachineInstr::setCFIFlag(CFIInstrFlag flag){
+  this->CFIFlag = flag;
+}
+
+// Returns the CFI flag of this instruction
+MachineInstr::CFIInstrFlag MachineInstr::getCFIFlag(){
+  return this->CFIFlag;
+}
+
 /// isIdenticalTo - Return true if this operand is identical to the specified
 /// operand. Note that this should stay in sync with the hash_value overload
 /// below.
@@ -643,6 +662,7 @@ MachineInstr::MachineInstr(MachineFunction &MF, const MachineInstr &MI)
 
   // Copy all the sensible flags.
   setFlags(MI.Flags);
+  setCFITag(MI.getCFITag());
 }
 
 /// getRegInfo - If this instruction is embedded into a MachineFunction,
@@ -1514,6 +1534,7 @@ void MachineInstr::copyImplicitOps(MachineFunction &MF,
     if ((MO.isReg() && MO.isImplicit()) || MO.isRegMask())
       addOperand(MF, MO);
   }
+  setCFITag(MI->getCFITag());
 }
 
 void MachineInstr::dump() const {

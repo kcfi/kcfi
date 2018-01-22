@@ -189,6 +189,9 @@ public:
   /// has not be overriden on the command line with '-regalloc=...'
   bool usingDefaultRegAlloc() const;
 
+	void loadCFIWL();
+	/// Loads list with CFI white listed functions
+
   /// Add common target configurable passes that perform LLVM IR to IR
   /// transforms following machine independent optimization.
   virtual void addIRPasses();
@@ -397,6 +400,9 @@ namespace llvm {
 
   /// EdgeBundles analysis - Bundle machine CFG edges.
   extern char &EdgeBundlesID;
+
+  /// CFI - The pass that creates the basic CFI Tags for every function
+  extern char &CFIID;
 
   /// LiveVariables pass - This pass computes the set of blocks in which each
   /// variable is life and sets machine operand kill flags.

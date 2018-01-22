@@ -84,6 +84,8 @@ public:
     SmallVector<ISD::InputArg, 4> Ins;
     SmallVector<unsigned, 4> InRegs;
 
+    unsigned int CFITag = 0;
+
     CallLoweringInfo()
         : RetTy(nullptr), RetSExt(false), RetZExt(false), IsVarArg(false),
           IsInReg(false), DoesNotReturn(false), IsReturnValueUsed(true),
@@ -185,6 +187,10 @@ public:
     void clearIns() {
       Ins.clear();
       InRegs.clear();
+    }
+
+    void setCFITags(const CallInst *CI){
+      CFITag = CI->getCFITag();
     }
   };
 

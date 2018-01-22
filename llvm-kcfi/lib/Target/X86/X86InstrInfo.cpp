@@ -45,6 +45,8 @@ using namespace llvm;
 #define GET_INSTRINFO_CTOR_DTOR
 #include "X86GenInstrInfo.inc"
 
+extern cl::opt<bool> CFIv;
+
 static cl::opt<bool>
 NoFusing("disable-spill-fusing",
          cl::desc("Disable fusing of spill code into instructions"));
@@ -4921,8 +4923,10 @@ MachineInstr *X86InstrInfo::foldMemoryOperandImpl(
   } else if (OpNum == 0) {
     if (MI->getOpcode() == X86::MOV32r0) {
       NewMI = MakeM0Inst(*this, X86::MOV32mi, MOs, InsertPt, MI);
-      if (NewMI)
+      if (NewMI){
+        NewMI->setCFITag(MI->getCFITag());
         return NewMI;
+      }
     }
 
     OpcodeTablePtr = &RegOp2MemOpTable0;
@@ -4979,6 +4983,8 @@ MachineInstr *X86InstrInfo::foldMemoryOperandImpl(
         else
           NewMI->getOperand(0).setSubReg(X86::sub_32bit);
       }
+
+      NewMI->setCFITag(MI->getCFITag());
       return NewMI;
     }
   }
@@ -5022,8 +5028,10 @@ MachineInstr *X86InstrInfo::foldMemoryOperandImpl(
         NewMI =
             foldMemoryOperandImpl(MF, MI, CommuteOp, MOs, InsertPt, Size, Align,
                                   /*AllowCommute=*/false);
-        if (NewMI)
+        if (NewMI){
+          NewMI->setCFITag(MI->getCFITag());
           return NewMI;
+        }
 
         // Folding failed again - undo the commute before returning.
         MachineInstr *UncommutedMI = commuteInstruction(MI, false);

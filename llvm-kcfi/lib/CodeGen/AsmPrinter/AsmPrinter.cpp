@@ -21,6 +21,7 @@
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/JumpInstrTableInfo.h"
 #include "llvm/CodeGen/Analysis.h"
+#include "llvm/CodeGen/CFGforCFI.h"
 #include "llvm/CodeGen/GCMetadataPrinter.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -54,6 +55,10 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
+
+extern CFICFG cfi;
+extern cl::opt<bool> CFIFwd;
+extern cl::opt<bool> CFICoarse;
 
 #define DEBUG_TYPE "asm-printer"
 
@@ -537,6 +542,21 @@ void AsmPrinter::EmitFunctionHeader() {
 
   if (MAI->hasDotTypeDotSizeDirective())
     OutStreamer->EmitSymbolAttribute(CurrentFnSym, MCSA_ELF_TypeFunction);
+
+  if(CFIFwd){
+    std::stringstream nopl;
+    if(CFICoarse){
+      nopl << "\tnopl " << 0x1337beef;
+      OutStreamer->EmitRawText(nopl.str());
+    }
+    else{
+      CFICluster c = cfi.getCluster(F->getCFICluster());
+      if(c.id){
+        nopl << "\tnopl 0x" << std::hex << c.head_id;
+        OutStreamer->EmitRawText(nopl.str());
+      }
+    }
+  }
 
   if (isVerbose()) {
     F->printAsOperand(OutStreamer->GetCommentOS(),

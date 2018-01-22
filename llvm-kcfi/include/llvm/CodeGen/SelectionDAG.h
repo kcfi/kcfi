@@ -315,6 +315,21 @@ public:
   typedef ilist<SDNode>::const_iterator allnodes_const_iterator;
   allnodes_const_iterator allnodes_begin() const { return AllNodes.begin(); }
   allnodes_const_iterator allnodes_end() const { return AllNodes.end(); }
+
+  ilist<SDNode>::iterator allnodes_last() {
+    ilist<SDNode>::iterator last;
+    last = AllNodes.end();
+    last--;
+    return last;
+  }
+
+  ilist<SDNode>::iterator allnodes_first() {
+    ilist<SDNode>::iterator first;
+    first = AllNodes.begin();
+    return first;
+  }
+
+
   typedef ilist<SDNode>::iterator allnodes_iterator;
   allnodes_iterator allnodes_begin() { return AllNodes.begin(); }
   allnodes_iterator allnodes_end() { return AllNodes.end(); }
