@@ -17,6 +17,7 @@
 
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
+#include <kcfi/kcfi_tags.h>
 
 /*
  * override generic version in lib/iomap_copy.c
@@ -25,6 +26,17 @@ ENTRY(__iowrite32_copy)
 	CFI_STARTPROC
 	movl %edx,%ecx
 	rep movsd
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr___iowrite32_copy, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(__iowrite32_copy)

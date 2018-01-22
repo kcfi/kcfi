@@ -16,9 +16,20 @@
 #include <linux/linkage.h>
 #include <asm/alternative-asm.h>
 #include <asm/dwarf2.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 #define __ASM_HALF_REG(reg)	__ASM_SEL(reg, e##reg)
 #define __ASM_HALF_SIZE(inst)	__ASM_SEL(inst##w, inst##l)
+
+#ifdef CONFIG_KCFI
+.macro KCFI_TAG tag=-1
+	nopl \tag
+.endm
+#else
+.macro KCFI_TAG tag=-1
+.endm
+#endif
 
 #ifdef CONFIG_X86_32
 
@@ -91,10 +102,22 @@ ENTRY(call_rwsem_down_read_failed)
 	CFI_REL_OFFSET __ASM_REG(dx), 0
 	movq %rax,%rdi
 	call rwsem_down_read_failed
+	KCFI_TAG KCFIr_rwsem_down_read_failed /* KCFI INSTR */
 	__ASM_SIZE(pop,_cfi) %__ASM_REG(dx)
 	CFI_RESTORE __ASM_REG(dx)
 	restore_common_regs
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_call_rwsem_down_read_failed, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(call_rwsem_down_read_failed)
 
@@ -103,8 +126,20 @@ ENTRY(call_rwsem_down_write_failed)
 	save_common_regs
 	movq %rax,%rdi
 	call rwsem_down_write_failed
+	KCFI_TAG KCFIr_rwsem_down_write_failed /* KCFI INSTR*/
 	restore_common_regs
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_call_rwsem_down_write_failed, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(call_rwsem_down_write_failed)
 
@@ -116,8 +151,21 @@ ENTRY(call_rwsem_wake)
 	save_common_regs
 	movq %rax,%rdi
 	call rwsem_wake
+	KCFI_TAG KCFIr_rwsem_wake /* kCFI INSTR */
 	restore_common_regs
-1:	ret
+1:
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_call_rwsem_wake, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
+	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(call_rwsem_wake)
 
@@ -128,9 +176,21 @@ ENTRY(call_rwsem_downgrade_wake)
 	CFI_REL_OFFSET __ASM_REG(dx), 0
 	movq %rax,%rdi
 	call rwsem_downgrade_wake
+	KCFI_TAG KCFIr_rwsem_downgrade_wake /* kCFI INSTR */
 	__ASM_SIZE(pop,_cfi) %__ASM_REG(dx)
 	CFI_RESTORE __ASM_REG(dx)
 	restore_common_regs
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_call_rwsem_downgrade_wake, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(call_rwsem_downgrade_wake)

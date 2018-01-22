@@ -16,6 +16,7 @@
 #include <asm/thread_info.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
+#include <kcfi/kcfi_tags.h>
 
 	.macro ALIGN_DESTINATION
 #ifdef FIX_ALIGNMENT
@@ -99,7 +100,18 @@ ENTRY(__copy_user_nocache)
 23:	xorl %eax,%eax
 	ASM_CLAC
 	sfence
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr___copy_user_nocache, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 
 	.section .fixup,"ax"
 30:	shll $6,%ecx

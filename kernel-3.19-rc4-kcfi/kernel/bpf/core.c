@@ -183,8 +183,9 @@ noinline u64 __bpf_call_base(u64 r1, u64 r2, u64 r3, u64 r4, u64 r5)
  *
  * Decode and execute eBPF instructions.
  */
-static unsigned int __bpf_prog_run(void *ctx, const struct bpf_insn *insn)
-{
+static unsigned int __bpf_prog_run(struct sk_buff *ctx, const struct bpf_insn *insn){
+//static unsigned int __bpf_prog_run(void *ctx, const struct bpf_insn *insn)
+//{
 	u64 stack[MAX_BPF_STACK / sizeof(u64)];
 	u64 regs[MAX_BPF_REG], tmp;
 	static const void *jumptable[256] = {

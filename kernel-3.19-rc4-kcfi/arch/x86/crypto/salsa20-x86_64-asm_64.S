@@ -1,4 +1,6 @@
 #include <linux/linkage.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 # enter salsa20_encrypt_bytes
 ENTRY(salsa20_encrypt_bytes)
@@ -789,7 +791,18 @@ ENTRY(salsa20_encrypt_bytes)
 	add	%r11,%rsp
 	mov	%rdi,%rax
 	mov	%rsi,%rdx
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_salsa20_encrypt_bytes, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 #   bytesatleast65:
 ._bytesatleast65:
 	#   bytes -= 64
@@ -889,7 +902,18 @@ ENTRY(salsa20_keysetup)
 	add	%r11,%rsp
 	mov	%rdi,%rax
 	mov	%rsi,%rdx
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_salsa20_keysetup, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 ENDPROC(salsa20_keysetup)
 
 # enter salsa20_ivsetup
@@ -914,5 +938,16 @@ ENTRY(salsa20_ivsetup)
 	add	%r11,%rsp
 	mov	%rdi,%rax
 	mov	%rsi,%rdx
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_salsa20_ivsetup, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 ENDPROC(salsa20_ivsetup)

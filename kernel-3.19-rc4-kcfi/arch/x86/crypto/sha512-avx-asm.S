@@ -47,6 +47,9 @@
 #
 ########################################################################
 
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
+
 #ifdef CONFIG_AS_AVX
 #include <linux/linkage.h>
 
@@ -364,7 +367,18 @@ updateblock:
 	mov	frame_RSPSAVE(%rsp), %rsp
 
 nowork:
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_nowork, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 ENDPROC(sha512_transform_avx)
 
 ########################################################################

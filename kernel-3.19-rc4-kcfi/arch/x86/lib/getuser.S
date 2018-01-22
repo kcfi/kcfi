@@ -33,6 +33,7 @@
 #include <asm/thread_info.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
+#include <kcfi/kcfi_tags.h>
 
 	.text
 ENTRY(__get_user_1)
@@ -44,7 +45,18 @@ ENTRY(__get_user_1)
 1:	movzbl (%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr___get_user_1, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(__get_user_1)
 
@@ -59,7 +71,18 @@ ENTRY(__get_user_2)
 2:	movzwl -1(%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr___get_user_2, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(__get_user_2)
 
@@ -74,7 +97,18 @@ ENTRY(__get_user_4)
 3:	movl -3(%_ASM_AX),%edx
 	xor %eax,%eax
 	ASM_CLAC
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr___get_user_4, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(__get_user_4)
 
@@ -90,7 +124,18 @@ ENTRY(__get_user_8)
 4:	movq -7(%_ASM_AX),%rdx
 	xor %eax,%eax
 	ASM_CLAC
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr___get_user_8, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 #else
 	add $7,%_ASM_AX
 	jc bad_get_user_8
@@ -102,7 +147,18 @@ ENTRY(__get_user_8)
 5:	movl -3(%_ASM_AX),%ecx
 	xor %eax,%eax
 	ASM_CLAC
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr___get_user_8, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 #endif
 	CFI_ENDPROC
 ENDPROC(__get_user_8)
@@ -113,7 +169,18 @@ bad_get_user:
 	xor %edx,%edx
 	mov $(-EFAULT),%_ASM_AX
 	ASM_CLAC
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_bad_get_user, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 END(bad_get_user)
 
@@ -124,7 +191,18 @@ bad_get_user_8:
 	xor %ecx,%ecx
 	mov $(-EFAULT),%_ASM_AX
 	ASM_CLAC
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_bad_get_user_8, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 END(bad_get_user_8)
 #endif

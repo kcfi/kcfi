@@ -42,10 +42,8 @@
 
 #define CAST6_PARALLEL_BLOCKS 8
 
-asmlinkage void cast6_ecb_enc_8way(struct cast6_ctx *ctx, u8 *dst,
-				   const u8 *src);
-asmlinkage void cast6_ecb_dec_8way(struct cast6_ctx *ctx, u8 *dst,
-				   const u8 *src);
+asmlinkage void cast6_ecb_enc_8way(void *ctx, u8 *dst, const u8 *src);
+asmlinkage void cast6_ecb_dec_8way(void *ctx, u8 *dst, const u8 *src);
 
 asmlinkage void cast6_cbc_dec_8way(struct cast6_ctx *ctx, u8 *dst,
 				   const u8 *src);

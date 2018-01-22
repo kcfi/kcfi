@@ -11,6 +11,7 @@
  */
 
 #include <linux/linkage.h>
+#include <kcfi/kcfi.h>
 
 #define CAMELLIA_TABLE_BYTE_LEN 272
 
@@ -1324,6 +1325,7 @@ camellia_xts_crypt_32way:
 	vpxor 15 * 32(%rax), %ymm15, %ymm15;
 
 	call *%r9;
+	KCFI_TAG(0x00dead00) /* kCFI INSTR */
 
 	addq $(16 * 32), %rsp;
 

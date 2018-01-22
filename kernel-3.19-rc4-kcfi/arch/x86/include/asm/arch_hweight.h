@@ -1,6 +1,11 @@
 #ifndef _ASM_X86_HWEIGHT_H
 #define _ASM_X86_HWEIGHT_H
 
+#ifdef CONFIG_KCFI
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
+#endif
+
 #ifdef CONFIG_64BIT
 /* popcnt %edi, %eax -- redundant REX prefix for alignment */
 #define POPCNT32 ".byte 0xf3,0x40,0x0f,0xb8,0xc7"
@@ -25,9 +30,16 @@ static inline unsigned int __arch_hweight32(unsigned int w)
 {
 	unsigned int res = 0;
 
+#ifdef CONFIG_KCFI
+	asm (ALTERNATIVE("call __sw_hweight32\nnopl " TAG_STR(KCFIr___sw_hweight32),
+		     POPCNT32, X86_FEATURE_POPCNT)
+		     : "="REG_OUT (res)
+		     : REG_IN (w));
+#else
 	asm (ALTERNATIVE("call __sw_hweight32", POPCNT32, X86_FEATURE_POPCNT)
 		     : "="REG_OUT (res)
 		     : REG_IN (w));
+#endif
 
 	return res;
 }
@@ -50,9 +62,17 @@ static inline unsigned long __arch_hweight64(__u64 w)
 	return  __arch_hweight32((u32)w) +
 		__arch_hweight32((u32)(w >> 32));
 #else
+#ifdef CONFIG_KCFI
+	asm (ALTERNATIVE("call __sw_hweight64\nnopl " TAG_STR(KCFIr___sw_hweight64),
+		     POPCNT64, X86_FEATURE_POPCNT)
+		     : "="REG_OUT (res)
+		     : REG_IN (w));
+
+#else
 	asm (ALTERNATIVE("call __sw_hweight64", POPCNT64, X86_FEATURE_POPCNT)
 		     : "="REG_OUT (res)
 		     : REG_IN (w));
+#endif /* CONFIG_KCFI */
 #endif /* CONFIG_X86_32 */
 
 	return res;

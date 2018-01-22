@@ -31,6 +31,7 @@
 
 #include <linux/linkage.h>
 #include <asm/inst.h>
+#include <kcfi/kcfi.h>
 
 #ifdef __x86_64__
 .data
@@ -2704,6 +2705,7 @@ ENTRY(aesni_xts_crypt8)
 	movdqu IV, 0x30(OUTP)
 
 	call *%r11
+	KCFI_TAG(0x00dead00) /* kCFI INSTR */
 
 	movdqu 0x00(OUTP), INC
 	pxor INC, STATE1
@@ -2749,6 +2751,7 @@ ENTRY(aesni_xts_crypt8)
 	movups IV, (IVP)
 
 	call *%r11
+	KCFI_TAG(0x00dead00) /* kCFI INSTR */
 
 	movdqu 0x40(OUTP), INC
 	pxor INC, STATE1

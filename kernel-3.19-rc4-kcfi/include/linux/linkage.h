@@ -5,6 +5,7 @@
 #include <linux/stringify.h>
 #include <linux/export.h>
 #include <asm/linkage.h>
+#include <kcfi/kcfi_tags.h>
 
 /* Some toolchains use other characters (e.g. '`') to mark new line in macro */
 #ifndef ASM_NL
@@ -79,10 +80,31 @@
 #define ALIGN_STR __ALIGN_STR
 
 #ifndef ENTRY
+
+#ifdef CONFIG_KCFI
+
+#define ENTRY(name) \
+        .globl name ASM_NL \
+	ALIGN ASM_NL \
+        nopl KCFIc_ ## name ASM_NL \
+	name:
+
+#else
+
 #define ENTRY(name) \
 	.globl name ASM_NL \
 	ALIGN ASM_NL \
 	name:
+
+#endif
+
+/* the one below is only used in very special cases of CFI */
+#define ENTRY_KCFI(name, tag) \
+        .globl name ASM_NL \
+        ALIGN ASM_NL \
+        nopl tag ASM_NL \
+        name:
+
 #endif
 #endif /* LINKER_SCRIPT */
 

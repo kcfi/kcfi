@@ -4,6 +4,7 @@
 #include <asm/dwarf2.h>
 #include <asm/cpufeature.h>
 #include <asm/alternative-asm.h>
+#include <kcfi/kcfi_tags.h>
 
 /*
  * ISO C memset - set a memory block to a byte value. This function uses fast
@@ -30,7 +31,18 @@
 	movl %edx,%ecx
 	rep stosb
 	movq %r9,%rax
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_memset, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 .Lmemset_e:
 	.previous
 
@@ -52,7 +64,18 @@
 	movq %rdx,%rcx
 	rep stosb
 	movq %r9,%rax
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_memset, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 .Lmemset_e_e:
 	.previous
 
@@ -118,7 +141,18 @@ ENTRY(__memset)
 
 .Lende:
 	movq	%r10,%rax
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_memset, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 
 	CFI_RESTORE_STATE
 .Lbad_alignment:

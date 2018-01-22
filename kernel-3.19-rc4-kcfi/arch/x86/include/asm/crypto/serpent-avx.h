@@ -16,10 +16,8 @@ struct serpent_xts_ctx {
 	struct serpent_ctx crypt_ctx;
 };
 
-asmlinkage void serpent_ecb_enc_8way_avx(struct serpent_ctx *ctx, u8 *dst,
-					 const u8 *src);
-asmlinkage void serpent_ecb_dec_8way_avx(struct serpent_ctx *ctx, u8 *dst,
-					 const u8 *src);
+asmlinkage void serpent_ecb_enc_8way_avx(void *ctx, u8 *dst, const u8 *src);
+asmlinkage void serpent_ecb_dec_8way_avx(void *ctx, u8 *dst, const u8 *src);
 
 asmlinkage void serpent_cbc_dec_8way_avx(struct serpent_ctx *ctx, u8 *dst,
 					 const u8 *src);

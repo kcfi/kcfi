@@ -7,7 +7,7 @@
 #include <linux/linkage.h>
 #include <asm/ptrace.h>
 #include <asm/ftrace.h>
-
+#include <kcfi/kcfi.h>
 
 	.code64
 	.section .entry.text, "ax"
@@ -279,6 +279,7 @@ trace:
 	save_mcount_regs
 
 	call   *ftrace_trace_function
+	KCFI_TAG(0x00dead00) /* kCFI INSTR */
 
 	restore_mcount_regs
 

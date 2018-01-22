@@ -38,6 +38,8 @@
 
 #ifdef __KERNEL__
 #include <asm/asm.h>
+#include <kcfi/kcfi_tags.h>
+#include <kcfi/kcfi.h>
 
 /*
  * The bias values and the counter type limits the number of
@@ -67,6 +69,9 @@ static inline void __down_read(struct rw_semaphore *sem)
 		     /* adds 0x00000001 */
 		     "  jns        1f\n"
 		     "  call call_rwsem_down_read_failed\n"
+#ifdef CONFIG_KCFI
+		     "  nopl " TAG_STR(KCFIr_call_rwsem_down_read_failed) "\n"
+#endif
 		     "1:\n\t"
 		     "# ending down_read\n\t"
 		     : "+m" (sem->count)
@@ -109,6 +114,9 @@ static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
 		     /* was the active mask 0 before? */
 		     "  jz        1f\n"
 		     "  call call_rwsem_down_write_failed\n"
+#ifdef CONFIG_KCFI
+		     "  nopl " TAG_STR(KCFIr_call_rwsem_down_write_failed) "\n"
+#endif
 		     "1:\n"
 		     "# ending down_write"
 		     : "+m" (sem->count), "=d" (tmp)
@@ -158,6 +166,9 @@ static inline void __up_read(struct rw_semaphore *sem)
 		     /* subtracts 1, returns the old value */
 		     "  jns        1f\n\t"
 		     "  call call_rwsem_wake\n" /* expects old value in %edx */
+#ifdef CONFIG_KCFI
+		     "  nopl " TAG_STR(KCFIr_call_rwsem_wake) "\n"
+#endif
 		     "1:\n"
 		     "# ending __up_read\n"
 		     : "+m" (sem->count), "=d" (tmp)
@@ -176,6 +187,9 @@ static inline void __up_write(struct rw_semaphore *sem)
 		     /* subtracts 0xffff0001, returns the old value */
 		     "  jns        1f\n\t"
 		     "  call call_rwsem_wake\n" /* expects old value in %edx */
+#ifdef CONFIG_KCFI
+		     "  nopl " TAG_STR(KCFIr_call_rwsem_wake) "\n"
+#endif
 		     "1:\n\t"
 		     "# ending __up_write\n"
 		     : "+m" (sem->count), "=d" (tmp)
@@ -196,6 +210,9 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 		      */
 		     "  jns       1f\n\t"
 		     "  call call_rwsem_downgrade_wake\n"
+#ifdef CONFIG_KCFI
+		     "  nopl " TAG_STR(KCFIr_call_rwsem_downgrade_wake) "\n"
+#endif
 		     "1:\n\t"
 		     "# ending __downgrade_write\n"
 		     : "+m" (sem->count)

@@ -9,6 +9,7 @@
 #include <asm/dwarf2.h>
 #include <asm/errno.h>
 #include <asm/asm.h>
+#include <kcfi/kcfi_tags.h>
 
 /*
  * Checksum copy with exception handling.
@@ -220,7 +221,18 @@ ENTRY(csum_partial_copy_generic)
 	CFI_RESTORE rbp
 	addq $7*8, %rsp
 	CFI_ADJUST_CFA_OFFSET -7*8
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_csum_partial_copy_generic, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_RESTORE_STATE
 
 	/* Exception handlers. Very simple, zeroing is done in the wrappers */

@@ -18,6 +18,7 @@
 #include <asm/alternative-asm.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
+#include <kcfi/kcfi_tags.h>
 
 /*
  * By placing feature2 after feature1 in altinstructions section, we logically
@@ -103,7 +104,6 @@ ENDPROC(_copy_from_user)
 	.section .fixup,"ax"
 	/* must zero dest */
 ENTRY(bad_from_user)
-bad_from_user:
 	CFI_STARTPROC
 	movl %edx,%ecx
 	xorl %eax,%eax
@@ -111,7 +111,18 @@ bad_from_user:
 	stosb
 bad_to_user:
 	movl %edx,%eax
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_bad_from_user, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(bad_from_user)
 	.previous
@@ -180,7 +191,18 @@ ENTRY(copy_user_generic_unrolled)
 	jnz 21b
 23:	xor %eax,%eax
 	ASM_CLAC
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_copy_user_generic_unrolled, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 
 	.section .fixup,"ax"
 30:	shll $6,%ecx
@@ -249,7 +271,18 @@ ENTRY(copy_user_generic_string)
 	movsb
 	xorl %eax,%eax
 	ASM_CLAC
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_copy_user_generic_string, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 
 	.section .fixup,"ax"
 11:	leal (%rdx,%rcx,8),%ecx
@@ -282,7 +315,18 @@ ENTRY(copy_user_enhanced_fast_string)
 	movsb
 	xorl %eax,%eax
 	ASM_CLAC
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_copy_user_enhanced_fast_string, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 
 	.section .fixup,"ax"
 12:	movl %ecx,%edx		/* ecx is zerorest also */

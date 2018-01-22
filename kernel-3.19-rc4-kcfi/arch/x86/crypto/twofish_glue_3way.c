@@ -36,10 +36,9 @@
 EXPORT_SYMBOL_GPL(__twofish_enc_blk_3way);
 EXPORT_SYMBOL_GPL(twofish_dec_blk_3way);
 
-static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
-					const u8 *src)
+static inline void twofish_enc_blk_3way(void *ctx, u8 *dst, const u8 *src)
 {
-	__twofish_enc_blk_3way(ctx, dst, src, false);
+	__twofish_enc_blk_3way((struct twofish_ctx *) ctx, dst, src, false);
 }
 
 static inline void twofish_enc_blk_xor_3way(struct twofish_ctx *ctx, u8 *dst,

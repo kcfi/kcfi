@@ -10,6 +10,7 @@
 #include <asm/dwarf2.h>
 #include <asm/cpufeature.h>
 #include <asm/alternative-asm.h>
+#include <kcfi/kcfi_tags.h>
 
 #undef memmove
 
@@ -202,7 +203,18 @@ ENTRY(memmove)
 	movb (%rsi), %r11b
 	movb %r11b, (%rdi)
 13:
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_memmove, 4(%r11)
+        pop %r11
+        jne 1337f
+        retq
+        1337:
+        call asm_violation_handler
+#else
 	retq
+#endif
 	CFI_ENDPROC
 
 	.section .altinstr_replacement,"ax"
@@ -210,7 +222,18 @@ ENTRY(memmove)
 	/* Forward moving data. */
 	movq %rdx, %rcx
 	rep movsb
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_memmove, 4(%r11)
+        pop %r11
+        jne 1337f
+        retq
+        1337:
+        call asm_violation_handler
+#else
 	retq
+#endif
 .Lmemmove_end_forward_efs:
 	.previous
 

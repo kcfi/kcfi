@@ -70,6 +70,7 @@
  */
 
 #include <linux/linkage.h>
+#include <kcfi/kcfi_tags.h>
 
 #define	CTX	%rdi	/* arg1 */
 #define BUF	%rsi	/* arg2 */
@@ -621,8 +622,13 @@ _loop3:
  * macro implements SHA-1 function's body for several 64-byte blocks
  * param: function's name
  */
+#ifdef CONFIG_KCFI
+.macro SHA1_VECTOR_ASM  name tag
+	ENTRY_KCFI(\name, \tag)
+#else
 .macro SHA1_VECTOR_ASM  name
 	ENTRY(\name)
+#endif
 
 	push	%rbx
 	push	%rbp
@@ -671,7 +677,19 @@ _loop3:
 	pop	%rbp
 	pop	%rbx
 
+	/* kCFI Epilogue */
+#ifdef CONFIG_KCFI
+        push    %r11
+        mov     8(%rsp), %r11
+        cmpl    $\tag, 4(%r11)
+        pop     %r11
+        jne     1337f
+        ret
+        1337:
+        call    asm_violation_handler
+#else
 	ret
+#endif
 
 	ENDPROC(\name)
 .endm
@@ -705,4 +723,8 @@ BSWAP_SHUFB_CTL:
 	.long 0x0c0d0e0f
 .text
 
+#ifdef CONFIG_KCFI
+SHA1_VECTOR_ASM	    sha1_transform_avx2 KCFIr_sha1_transform_avx2
+#else
 SHA1_VECTOR_ASM     sha1_transform_avx2
+#endif

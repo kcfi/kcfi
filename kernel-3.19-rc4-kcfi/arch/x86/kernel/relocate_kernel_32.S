@@ -10,6 +10,8 @@
 #include <asm/page_types.h>
 #include <asm/kexec.h>
 #include <asm/processor-flags.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 /*
  * Must be relocatable PIC code callable as a C function
@@ -137,6 +139,7 @@ identity_mapped:
 	pushl	%eax
 	pushl	%ebx
 	call	swap_pages
+	KCFI_TAG(KCFIr_swap_pages) /* kCFI INSTR */
 	addl	$8, %esp
 
 	/*
@@ -168,6 +171,7 @@ identity_mapped:
 	addl	$PAGE_SIZE, %esp
 2:
 	call	*%edx
+	KCFI_TAG(0x00dead00) /* kCFI INSTR */
 
 	/* get the re-entry point of the peer system */
 	movl	0(%esp), %ebp
@@ -182,6 +186,7 @@ identity_mapped:
 	pushl	%eax
 	pushl	%edx
 	call	swap_pages
+	KCFI_TAG(KCFIr_swap_pages) /* kCFI INSTR */
 	addl	$8, %esp
 	movl	CP_PA_PGD(%ebx), %eax
 	movl	%eax, %cr3

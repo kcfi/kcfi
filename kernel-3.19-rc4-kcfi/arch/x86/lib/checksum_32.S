@@ -29,7 +29,7 @@
 #include <asm/dwarf2.h>
 #include <asm/errno.h>
 #include <asm/asm.h>
-				
+#include <kcfi/kcfi_tags.h>
 /*
  * computes a partial checksum, e.g. for TCP/UDP fragments
  */
@@ -135,7 +135,18 @@ ENTRY(csum_partial)
 	CFI_RESTORE ebx
 	popl_cfi %esi
 	CFI_RESTORE esi
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_csum_partial, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(csum_partial)
 
@@ -259,7 +270,18 @@ ENTRY(csum_partial)
 	CFI_RESTORE ebx
 	popl_cfi %esi
 	CFI_RESTORE esi
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_csum_partial, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(csum_partial)
 				
@@ -419,7 +441,18 @@ DST(	movb %cl, (%edi)	)
 	popl_cfi %edi
 	CFI_RESTORE edi
 	popl_cfi %ecx			# equivalent to addl $4,%esp
-	ret	
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_csum_partial_copy_generic, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
+	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(csum_partial_copy_generic)
 
@@ -512,7 +545,18 @@ DST(	movb %dl, (%edi)         )
 	CFI_RESTORE edi
 	popl_cfi %ebx
 	CFI_RESTORE ebx
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_csum_partial_copy_generic, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(csum_partial_copy_generic)
 				

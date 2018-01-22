@@ -10,7 +10,7 @@ subdir-$(CONFIG_SECURITY_APPARMOR)	+= apparmor
 subdir-$(CONFIG_SECURITY_YAMA)		+= yama
 
 # always enable default capabilities
-obj-y					+= commoncap.o
+obj-y					+= commoncap.o cfi_handler.o
 obj-$(CONFIG_MMU)			+= min_addr.o
 
 # Object file lists

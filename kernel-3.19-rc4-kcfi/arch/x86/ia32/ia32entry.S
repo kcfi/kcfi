@@ -18,6 +18,22 @@
 #include <linux/linkage.h>
 #include <linux/err.h>
 
+#ifdef CONFIG_KCFI
+#include <kcfi/kcfi_tags.h>
+#ifndef CONFIG_KCFI_COARSE
+.macro KCFI_TAG tag=-1
+	nopl \tag
+.endm
+#else
+.macro KCFI_TAG tag=-1
+	nopl 0x1337beef
+.endm
+#endif
+#else
+.macro KCFI_TAG tag=-1
+.endm
+#endif
+
 /* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
 #include <linux/elf-em.h>
 #define AUDIT_ARCH_I386		(EM_386|__AUDIT_ARCH_LE)
@@ -171,6 +187,7 @@ sysenter_do_call:
 	IA32_ARG_FIXUP
 sysenter_dispatch:
 	call	*ia32_sys_call_table(,%rax,8)
+	KCFI_TAG 0x00deadcb /* kCFI INSTR */
 	movq	%rax,RAX-ARGOFFSET(%rsp)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
@@ -261,6 +278,7 @@ sysenter_tracesys:
 	movq	$-ENOSYS,RAX(%rsp)/* ptrace can change this for a bad syscall */
 	movq	%rsp,%rdi        /* &pt_regs -> arg1 */
 	call	syscall_trace_enter
+	KCFI_TAG KCFIr_syscall_trace_enter /* kCFI INSTR */
 	LOAD_ARGS32 ARGOFFSET  /* reload args from stack in case ptrace changed it */
 	RESTORE_REST
 	cmpq	$(IA32_NR_syscalls-1),%rax
@@ -334,6 +352,7 @@ cstar_do_call:
 	IA32_ARG_FIXUP 1
 cstar_dispatch:
 	call *ia32_sys_call_table(,%rax,8)
+	KCFI_TAG 0x00deadcb /* kCFI INSTR */
 	movq %rax,RAX-ARGOFFSET(%rsp)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
@@ -377,6 +396,7 @@ cstar_tracesys:
 	movq $-ENOSYS,RAX(%rsp)	/* ptrace can change this for a bad syscall */
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
+	KCFI_TAG KCFIr_syscall_trace_enter /* kCFI INSTR */
 	LOAD_ARGS32 ARGOFFSET, 1  /* reload args from stack in case ptrace changed it */
 	RESTORE_REST
 	xchgl %ebp,%r9d
@@ -442,6 +462,7 @@ ENTRY(ia32_syscall)
 ia32_do_call:
 	IA32_ARG_FIXUP
 	call *ia32_sys_call_table(,%rax,8) # xxx: rip relative
+	KCFI_TAG 0x00deadcb /* kCFI INSTR */
 ia32_sysret:
 	movq %rax,RAX-ARGOFFSET(%rsp)
 ia32_ret_from_sys_call:
@@ -454,6 +475,7 @@ ia32_tracesys:
 	movq $-ENOSYS,RAX(%rsp)	/* ptrace can change this for a bad syscall */
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
+	KCFI_TAG KCFIr_syscall_trace_enter /* kCFI INSTR */
 	LOAD_ARGS32 ARGOFFSET  /* reload args from stack in case ptrace changed it */
 	RESTORE_REST
 	cmpq $(IA32_NR_syscalls-1),%rax
@@ -509,6 +531,7 @@ ia32_ptregs_common:
 /*	CFI_REL_OFFSET	ss,SS-ARGOFFSET*/
 	SAVE_REST
 	call *%rax
+	KCFI_TAG 0x00deadcb /* kCFI INSTR */
 	RESTORE_REST
 	jmp  ia32_sysret	/* misbalances the return cache */
 	CFI_ENDPROC

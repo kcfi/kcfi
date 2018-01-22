@@ -22,6 +22,8 @@
 
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 #define a_offset	0
 #define b_offset	4
@@ -265,7 +267,18 @@ ENTRY(twofish_enc_blk)
 
 	popq	R1
 	movq	$1,%rax
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_twofish_enc_blk, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 ENDPROC(twofish_enc_blk)
 
 ENTRY(twofish_dec_blk)
@@ -317,5 +330,16 @@ ENTRY(twofish_dec_blk)
 
 	popq	R1
 	movq	$1,%rax
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_twofish_dec_blk, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 ENDPROC(twofish_dec_blk)

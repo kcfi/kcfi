@@ -45,6 +45,7 @@
 
 #include <asm/inst.h>
 #include <linux/linkage.h>
+#include <kcfi/kcfi_tags.h>
 
 ## ISCSI CRC 32 Implementation with crc32 and pclmulqdq Instruction
 
@@ -309,7 +310,18 @@ do_return:
 	popq    %rsi
 	popq    %rdi
 	popq    %rbx
+#ifdef CONFIG_KCFI
+        push    %r11
+        mov     8(%rsp), %r11
+        cmpl    $KCFIr_crc_pcl, 4(%r11)
+        pop     %r11
+        jne     cfi_end
         ret
+cfi_end:
+        callq   asm_violation_handler
+#else
+        ret
+#endif
 
         ################################################################
         ## jump table        Table is 129 entries x 2 bytes each

@@ -29,6 +29,8 @@
  */
 
 #include <linux/linkage.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 #define CTX	%rdi	// arg1
 #define BUF	%rsi	// arg2
@@ -70,8 +72,13 @@
  * This macro implements the SHA-1 function's body for single 64-byte block
  * param: function's name
  */
+#ifdef CONFIG_KCFI
+.macro SHA1_VECTOR_ASM	name tag
+	ENTRY_KCFI(\name, \tag)
+#else
 .macro SHA1_VECTOR_ASM  name
 	ENTRY(\name)
+#endif
 
 	push	%rbx
 	push	%rbp
@@ -104,7 +111,19 @@
 	pop	%r12
 	pop	%rbp
 	pop	%rbx
+
+#ifdef CONFIG_KCFI
+	push    %r11
+        mov     8(%rsp), %r11
+        cmpl    $\tag, 4(%r11)
+        pop     %r11
+        jne     1337f
+        ret
+        1337:
+        call    asm_violation_handler
+#else
 	ret
+#endif
 
 	ENDPROC(\name)
 .endm
@@ -466,7 +485,11 @@ W_PRECALC_SSSE3
  *  extern "C" void sha1_transform_ssse3(u32 *digest, const char *data, u32 *ws,
  *                                       unsigned int rounds);
  */
+#ifdef CONFIG_KCFI
+SHA1_VECTOR_ASM	    sha1_transform_ssse3 KCFIr_sha1_transform_ssse3
+#else
 SHA1_VECTOR_ASM     sha1_transform_ssse3
+#endif
 
 #ifdef CONFIG_AS_AVX
 
@@ -553,6 +576,9 @@ W_PRECALC_AVX
  *  extern "C" void sha1_transform_avx(u32 *digest, const char *data, u32 *ws,
  *                                     unsigned int rounds);
  */
+#ifdef CONFIG_KCFI
+SHA1_VECTOR_ASM	    sha1_transform_avx KCFIr_sha1_transform_avx
+#else
 SHA1_VECTOR_ASM     sha1_transform_avx
-
+#endif
 #endif

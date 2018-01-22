@@ -49,6 +49,8 @@
 # This code schedules 1 blocks at a time, with 4 lanes per block
 ########################################################################
 
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 #ifdef CONFIG_AS_AVX2
 #include <linux/linkage.h>
 
@@ -678,7 +680,18 @@ done_hash:
 
 	# Restore Stack Pointer
 	mov	frame_RSPSAVE(%rsp), %rsp
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_sha512_transform_rorx, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 ENDPROC(sha512_transform_rorx)
 
 ########################################################################

@@ -60,6 +60,22 @@
 #include <asm/pgtable_types.h>
 #include <linux/err.h>
 
+#ifdef CONFIG_KCFI
+#include <kcfi/kcfi_tags.h>
+#ifdef CONFIG_KCFI_COARSE
+.macro KCFI_TAG tag=-1
+	nopl 0x1337beef
+.endm
+#else
+.macro KCFI_TAG tag=-1
+	nopl \tag
+.endm
+#endif
+#else
+.macro KCFI_TAG tag=-1
+.endm
+#endif
+
 /* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
 #include <linux/elf-em.h>
 #define AUDIT_ARCH_X86_64	(EM_X86_64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
@@ -106,14 +122,18 @@ ENDPROC(native_usergs_sysret64)
 
 .macro TRACE_IRQS_OFF_DEBUG
 	call debug_stack_set_zero
+	KCFI_TAG KCFIr_debug_stack_set_zero /* kCFI INSTR */
 	TRACE_IRQS_OFF
 	call debug_stack_reset
+	KCFI_TAG KCFIr_debug_stack_reset /* kCFI INSTR */
 .endm
 
 .macro TRACE_IRQS_ON_DEBUG
 	call debug_stack_set_zero
+	KCFI_TAG KCFIr_debug_stack_set_zero /* kCFI INSTR */
 	TRACE_IRQS_ON
 	call debug_stack_reset
+	KCFI_TAG KCFIr_debug_stack_reset /* kCFI INSTR */
 .endm
 
 .macro TRACE_IRQS_IRETQ_DEBUG offset=ARGOFFSET
@@ -308,7 +328,19 @@ ENTRY(save_paranoid)
 	js 1f	/* negative -> in kernel */
 	SWAPGS
 	xorl %ebx,%ebx
-1:	ret
+1:
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_save_paranoid, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
+	ret
+#endif
 	CFI_ENDPROC
 END(save_paranoid)
 
@@ -326,6 +358,7 @@ ENTRY(ret_from_fork)
 	popfq_cfi				# reset kernel eflags
 
 	call schedule_tail			# rdi: 'prev' task parameter
+	KCFI_TAG KCFIr_schedule_tail /* kCFI INSTR */
 
 	GET_THREAD_INFO(%rcx)
 
@@ -345,6 +378,7 @@ ENTRY(ret_from_fork)
 	CFI_ADJUST_CFA_OFFSET	REST_SKIP
 	movq %rbp, %rdi
 	call *%rbx
+	KCFI_TAG 0x00dead01 /* kCFI INSTR */
 	movl $0, RAX(%rsp)
 	RESTORE_REST
 	jmp int_ret_from_sys_call
@@ -420,6 +454,7 @@ system_call_fastpath:
 	ja ret_from_sys_call  /* and return regs->ax */
 	movq %r10,%rcx
 	call *sys_call_table(,%rax,8)  # XXX:	 rip relative
+	KCFI_TAG 0x00deadca /* kCFI INSTR */
 	movq %rax,RAX-ARGOFFSET(%rsp)
 /*
  * Syscall return path ending with SYSRET (fast path)
@@ -497,6 +532,7 @@ tracesys:
 	leaq -REST_SKIP(%rsp), %rdi
 	movq $AUDIT_ARCH_X86_64, %rsi
 	call syscall_trace_enter_phase1
+	KCFI_TAG KCFIr_syscall_trace_enter_phase1 /* kCFI INSTR */
 	test %rax, %rax
 	jnz tracesys_phase2		/* if needed, run the slow path */
 	LOAD_ARGS 0			/* else restore clobbered regs */
@@ -509,6 +545,7 @@ tracesys_phase2:
 	movq $AUDIT_ARCH_X86_64, %rsi
 	movq %rax,%rdx
 	call syscall_trace_enter_phase2
+	KCFI_TAG KCFIr_syscall_trace_enter_phase2 /* kCFI INSTR */
 
 	/*
 	 * Reload arg registers from stack in case ptrace changed them.
@@ -526,6 +563,7 @@ tracesys_phase2:
 	ja   int_ret_from_sys_call	/* RAX(%rsp) is already set */
 	movq %r10,%rcx	/* fixup for C */
 	call *sys_call_table(,%rax,8)
+	KCFI_TAG 0x00dead00 /* kCFI INSTR */
 	movq %rax,RAX-ARGOFFSET(%rsp)
 	/* Use IRET because user could have changed frame */
 
@@ -574,6 +612,7 @@ int_check_syscall_exit_work:
 	pushq_cfi %rdi
 	leaq 8(%rsp),%rdi	# &ptregs -> arg1
 	call syscall_trace_leave
+	KCFI_TAG KCFIr_syscall_trace_leave /* kCFI INSTR */
 	popq_cfi %rdi
 	andl $~(_TIF_WORK_SYSCALL_EXIT|_TIF_SYSCALL_EMU),%edi
 	jmp int_restore_rest
@@ -584,6 +623,7 @@ int_signal:
 	movq %rsp,%rdi		# &ptregs -> arg1
 	xorl %esi,%esi		# oldset -> arg2
 	call do_notify_resume
+	KCFI_TAG KCFIr_do_notify_resume /* kCFI INSTR */
 1:	movl $_TIF_WORK_MASK,%edi
 int_restore_rest:
 	RESTORE_REST
@@ -593,8 +633,12 @@ int_restore_rest:
 	CFI_ENDPROC
 END(system_call)
 
-	.macro FORK_LIKE func
+	.macro FORK_LIKE func rcfi_tag=-1 ccfi_tag=-1
+#ifdef CONFIG_KCFI
+ENTRY_KCFI(stub_\func, \ccfi_tag)
+#else
 ENTRY(stub_\func)
+#endif
 	CFI_STARTPROC
 	popq	%r11			/* save return address */
 	PARTIAL_FRAME 0
@@ -603,28 +647,75 @@ ENTRY(stub_\func)
 	FIXUP_TOP_OF_STACK %r11, 8
 	DEFAULT_FRAME 0 8		/* offset 8: return address */
 	call sys_\func
+#ifdef CONFIG_KCFI
+	nopl \rcfi_tag
+#endif
 	RESTORE_TOP_OF_STACK %r11, 8
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+#ifdef CONFIG_KCFI_COARSE
+	cmpl $0x1337beef, 4(%r11)
+#else
+        cmpl $0xdeadca, 4(%r11)
+#endif
+        pop %r11
+        jne 1337f
+        ret $REST_SKIP
+        1337:
+        call asm_violation_handler
+#else
 	ret $REST_SKIP		/* pop extended registers */
+#endif
 	CFI_ENDPROC
 END(stub_\func)
 	.endm
 
-	.macro FIXED_FRAME label,func
+	.macro FIXED_FRAME label,func, rcfi_tag=-1, ccfi_tag=-1
+#ifdef CONFIG_KCFI
+ENTRY_KCFI(\label, \ccfi_tag)
+#else
 ENTRY(\label)
+#endif
 	CFI_STARTPROC
 	PARTIAL_FRAME 0 8		/* offset 8: return address */
 	FIXUP_TOP_OF_STACK %r11, 8-ARGOFFSET
 	call \func
+#ifdef CONFIG_KCFI
+	nopl \rcfi_tag
+#endif
 	RESTORE_TOP_OF_STACK %r11, 8-ARGOFFSET
-	ret
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+#ifdef CONFIG_KCFI_COARSE
+	cmpl $0x1337beef, 4(%r11)
+#else
+        cmpl $0xdeadca, 4(%r11)
+#endif
+        pop %r11
+        jne 1337f
+        ret $REST_SKIP
+        1337:
+        call asm_violation_handler
+#else
+	ret $REST_SKIP		/* pop extended registers */
+#endif
 	CFI_ENDPROC
 END(\label)
 	.endm
 
+#ifdef CONFIG_KCFI
+	FORK_LIKE  clone KCFIr_sys_clone KCFIc_stub_clone
+	FORK_LIKE  fork KCFIr_sys_fork KCFIc_stub_fork
+	FORK_LIKE  vfork KCFIr_sys_vfork KCFIc_stub_vfork
+	FIXED_FRAME stub_iopl, sys_iopl, KCFIr_sys_iopl, KCFIc_stub_iopl
+#else
 	FORK_LIKE  clone
 	FORK_LIKE  fork
 	FORK_LIKE  vfork
 	FIXED_FRAME stub_iopl, sys_iopl
+#endif
 
 ENTRY(ptregscall_common)
 	DEFAULT_FRAME 1 8	/* offset 8: return address */
@@ -635,7 +726,22 @@ ENTRY(ptregscall_common)
 	movq_cfi_restore R12+8, r12
 	movq_cfi_restore RBP+8, rbp
 	movq_cfi_restore RBX+8, rbx
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+#ifdef CONFIG_KCFI_COARSE
+	cmpl $0x1337beef, 4(%r11)
+#else
+        cmpl $0xdeadca, 4(%r11)
+#endif
+        pop %r11
+        jne 1337f
+        ret $REST_SKIP
+        1337:
+        call asm_violation_handler
+#else
 	ret $REST_SKIP		/* pop extended registers */
+#endif
 	CFI_ENDPROC
 END(ptregscall_common)
 
@@ -646,6 +752,7 @@ ENTRY(stub_execve)
 	SAVE_REST
 	FIXUP_TOP_OF_STACK %r11
 	call sys_execve
+	KCFI_TAG KCFIr_sys_execve /* kCFI INSTR */
 	movq %rax,RAX(%rsp)
 	RESTORE_REST
 	jmp int_ret_from_sys_call
@@ -659,6 +766,7 @@ ENTRY(stub_execveat)
 	SAVE_REST
 	FIXUP_TOP_OF_STACK %r11
 	call sys_execveat
+	KCFI_TAG KCFIr_sys_execveat /* kCFI INSTR */
 	RESTORE_TOP_OF_STACK %r11
 	movq %rax,RAX(%rsp)
 	RESTORE_REST
@@ -677,6 +785,7 @@ ENTRY(stub_rt_sigreturn)
 	SAVE_REST
 	FIXUP_TOP_OF_STACK %r11
 	call sys_rt_sigreturn
+	KCFI_TAG KCFIr_sys_rt_sigreturn /* kCFI INSTR */
 	movq %rax,RAX(%rsp) # fixme, this could be done at the higher layer
 	RESTORE_REST
 	jmp int_ret_from_sys_call
@@ -704,6 +813,7 @@ ENTRY(stub_x32_execve)
 	SAVE_REST
 	FIXUP_TOP_OF_STACK %r11
 	call compat_sys_execve
+	KCFI_TAG KCFIr_compat_sys_execve /* kCFI INSTR */
 	RESTORE_TOP_OF_STACK %r11
 	movq %rax,RAX(%rsp)
 	RESTORE_REST
@@ -718,6 +828,7 @@ ENTRY(stub_x32_execveat)
 	SAVE_REST
 	FIXUP_TOP_OF_STACK %r11
 	call compat_sys_execveat
+	KCFI_TAG KCFIr_compat_sys_execveat /* kCFI INSTR */
 	RESTORE_TOP_OF_STACK %r11
 	movq %rax,RAX(%rsp)
 	RESTORE_REST
@@ -793,6 +904,7 @@ common_interrupt:
 	ASM_CLAC
 	addq $-0x80,(%rsp)		/* Adjust vector to [-256,-1] range */
 	interrupt do_IRQ
+	KCFI_TAG KCFIr_do_IRQ
 	/* 0(%rsp): old_rsp-ARGOFFSET */
 ret_from_intr:
 	DISABLE_INTERRUPTS(CLBR_NONE)
@@ -917,6 +1029,7 @@ retint_signal:
 	xorl %esi,%esi		# oldset
 	movq %rsp,%rdi		# &pt_regs
 	call do_notify_resume
+	KCFI_TAG KCFIr_do_notify_resume /* kCFI INSTR */
 	RESTORE_REST
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
@@ -932,21 +1045,31 @@ ENTRY(retint_kernel)
 	bt   $9,EFLAGS-ARGOFFSET(%rsp)	/* interrupts off? */
 	jnc  retint_restore_args
 	call preempt_schedule_irq
+	KCFI_TAG KCFIr_preempt_schedule_irq /* kCFI INSTR */
 	jmp exit_intr
 #endif
 	CFI_ENDPROC
 END(common_interrupt)
 
+#ifdef CONFIG_KCFI
+#define KCFI_TAG_EXP(func) KCFIr_##func
+#endif
+
 /*
  * APIC interrupts.
  */
-.macro apicinterrupt3 num sym do_sym
+.macro apicinterrupt3 num sym do_sym rcfi_tag=-1 ccfi_tag=-1
+#ifdef CONFIG_KCFI
+ENTRY_KCFI(\sym, \ccfi_tag)
+#else
 ENTRY(\sym)
+#endif
 	INTR_FRAME
 	ASM_CLAC
 	pushq_cfi $~(\num)
 .Lcommon_\sym:
 	interrupt \do_sym
+	KCFI_TAG \rcfi_tag
 	jmp ret_from_intr
 	CFI_ENDPROC
 END(\sym)
@@ -956,19 +1079,21 @@ END(\sym)
 #define trace(sym) trace_##sym
 #define smp_trace(sym) smp_trace_##sym
 
-.macro trace_apicinterrupt num sym
-apicinterrupt3 \num trace(\sym) smp_trace(\sym)
+.macro trace_apicinterrupt num sym rcfi_tag=-1 ccfi_tag=-1
+apicinterrupt3 \num trace(\sym) smp_trace(\sym) rcfi_tag=\rcfi_tag \
+        ccfi_tag=\ccfi_tag
 .endm
 #else
-.macro trace_apicinterrupt num sym do_sym
+.macro trace_apicinterrupt num sym do_sym rcfi_tag=-1 ccfi_tag=-1
 .endm
 #endif
 
-.macro apicinterrupt num sym do_sym
-apicinterrupt3 \num \sym \do_sym
-trace_apicinterrupt \num \sym
+.macro apicinterrupt num sym do_sym rcfi_tag=-1 ccfi_tag=-1
+apicinterrupt3 \num \sym \do_sym rcfi_tag=\rcfi_tag ccfi_tag=\ccfi_tag
+trace_apicinterrupt \num \sym rcfi_tag=\rcfi_tag ccfi_tag=\ccfi_tag
 .endm
 
+#ifndef CONFIG_KCFI
 #ifdef CONFIG_SMP
 apicinterrupt3 IRQ_MOVE_CLEANUP_VECTOR \
 	irq_move_cleanup_interrupt smp_irq_move_cleanup_interrupt
@@ -1018,14 +1143,89 @@ apicinterrupt SPURIOUS_APIC_VECTOR \
 apicinterrupt IRQ_WORK_VECTOR \
 	irq_work_interrupt smp_irq_work_interrupt
 #endif
+#else /* CONFIG_KCFI */
+#ifdef CONFIG_SMP
+apicinterrupt3 IRQ_MOVE_CLEANUP_VECTOR irq_move_cleanup_interrupt \
+	smp_irq_move_cleanup_interrupt  \
+        rcfi_tag=KCFIr_smp_irq_move_cleanup_interrupt \
+        ccfi_tag=KCFIc_irq_move_cleanup_interrupt
+apicinterrupt3 REBOOT_VECTOR reboot_interrupt smp_reboot_interrupt \
+	rcfi_tag=KCFIr_smp_reboot_interrupt  \
+        ccfi_tag=KCFIc_reboot_interrupt
+#endif
+
+#ifdef CONFIG_X86_UV
+apicinterrupt3 UV_BAU_MESSAGE uv_bau_message_intr1 uv_bau_message_interrupt \
+	rcfi_tag=KCFIr_uv_bau_message_interrupt \
+        ccfi_tag=KCFIc_uv_bay_message_intr1
+#endif
+apicinterrupt LOCAL_TIMER_VECTOR apic_timer_interrupt smp_apic_timer_interrupt \
+	rcfi_tag=KCFIr_smp_apic_timer_interrupt \
+        ccfi_tag=KCFIc_apic_timer
+apicinterrupt X86_PLATFORM_IPI_VECTOR x86_platform_ipi smp_x86_platform_ipi \
+	rcfi_tag=KCFIr_smp_x86_platform_ipi  \
+        ccfi_tag=KCFIc_x86_platform_ipi
+
+#ifdef CONFIG_HAVE_KVM
+apicinterrupt3 POSTED_INTR_VECTOR kvm_posted_intr_ipi smp_kvm_posted_intr_ipi \
+	rcfi_tag=KCFIr_smp_kvm_posted_intr_ipi \
+        ccfi_tag=KCFIc_kvm_posted_intr_ipi
+#endif
+
+#ifdef CONFIG_X86_MCE_THRESHOLD
+apicinterrupt THRESHOLD_APIC_VECTOR threshold_interrupt \
+	smp_threshold_interrupt \
+        rcfi_tag=KCFIr_smp_threshold_interrupt \
+        ccfi_tag=KCFIc_threshold_interrupt
+#endif
+
+#ifdef CONFIG_X86_THERMAL_VECTOR
+apicinterrupt THERMAL_APIC_VECTOR thermal_interrupt smp_thermal_interrupt \
+	rcfi_tag=KCFIr_smp_thermal_interrupt  \
+        ccfi_tag=KCFIc_thermal_interrupt
+#endif
+
+#ifdef CONFIG_SMP
+apicinterrupt CALL_FUNCTION_SINGLE_VECTOR \
+	call_function_single_interrupt smp_call_function_single_interrupt \
+	rcfi_tag=KCFIr_smp_call_function_single_interrupt \
+        ccfi_tag=KCFIc_call_function_single_interrupt
+apicinterrupt CALL_FUNCTION_VECTOR \
+	call_function_interrupt smp_call_function_interrupt \
+	rcfi_tag=KCFIr_smp_call_function_interrupt  \
+        ccfi_tag=KCFIc_call_function_interrupt
+apicinterrupt RESCHEDULE_VECTOR \
+	reschedule_interrupt smp_reschedule_interrupt \
+	rcfi_tag=KCFIr_smp_reschedule_interrupt \
+        ccfi_tag=KCFIc_reschedule_interrupt
+#endif
+
+apicinterrupt ERROR_APIC_VECTOR error_interrupt smp_error_interrupt \
+	rcfi_tag=KCFIr_smp_error_interrupt \
+        ccfi_tag=KCFIc_error_interrupt
+apicinterrupt SPURIOUS_APIC_VECTOR spurious_interrupt smp_spurious_interrupt \
+	rcfi_tag=KCFIr_smp_spurious_interrupt \
+        ccfi_tag=KCFIc_spurious_interrupt
+
+#ifdef CONFIG_IRQ_WORK
+apicinterrupt IRQ_WORK_VECTOR \
+	irq_work_interrupt smp_irq_work_interrupt \
+	rcfi_tag=KCFIr_smp_irq_work_interrupt \
+        ccfi_tag=KCFIc_irq_work_interrupt
+#endif
+#endif /* CONFIG_KCFI */
 
 /*
  * Exception entry points.
  */
 #define INIT_TSS_IST(x) PER_CPU_VAR(init_tss) + (TSS_ist + ((x) - 1) * 8)
 
-.macro idtentry sym do_sym has_error_code:req paranoid=0 shift_ist=-1
+.macro idtentry sym do_sym has_error_code:req paranoid=0 shift_ist=-1 rcfi_tag=-1 ccfi_tag=-1
+#ifdef CONFIG_KCFI
+ENTRY_KCFI(\sym, \ccfi_tag)
+#else
 ENTRY(\sym)
+#endif
 	/* Sanity check */
 	.if \shift_ist != -1 && \paranoid == 0
 	.error "using shift_ist requires paranoid=1"
@@ -1049,8 +1249,10 @@ ENTRY(\sym)
 
 	.if \paranoid
 	call save_paranoid
+	KCFI_TAG KCFIr_save_paranoid /* kCFI INSTR */
 	.else
 	call error_entry
+	KCFI_TAG KCFIr_error_entry /* kCFI INSTR */
 	.endif
 
 	DEFAULT_FRAME 0
@@ -1077,6 +1279,7 @@ ENTRY(\sym)
 	.endif
 
 	call \do_sym
+	KCFI_TAG \rcfi_tag
 
 	.if \shift_ist != -1
 	addq $EXCEPTION_STKSZ, INIT_TSS_IST(\shift_ist)
@@ -1092,6 +1295,7 @@ ENTRY(\sym)
 END(\sym)
 .endm
 
+#ifndef CONFIG_KCFI
 #ifdef CONFIG_TRACING
 .macro trace_idtentry sym do_sym has_error_code:req
 idtentry trace(\sym) trace(\do_sym) has_error_code=\has_error_code
@@ -1116,7 +1320,32 @@ idtentry spurious_interrupt_bug do_spurious_interrupt_bug has_error_code=0
 idtentry coprocessor_error do_coprocessor_error has_error_code=0
 idtentry alignment_check do_alignment_check has_error_code=1
 idtentry simd_coprocessor_error do_simd_coprocessor_error has_error_code=0
+#else
+#ifdef CONFIG_TRACING
+.macro trace_idtentry sym do_sym has_error_code:req rcfi_tag=-1 ccfi_tag=-1
+idtentry trace(\sym) trace(\do_sym) has_error_code=\has_error_code rcfi_tag=\rcfi_tag ccfi_tag=\ccfi_tag
+idtentry \sym \do_sym has_error_code=\has_error_code rcfi_tag=\rcfi_tag ccfi_tag=\ccfi_tag
+.endm
+#else
+.macro trace_idtentry sym do_sym has_error_code:req rcfi_tag=-1 ccfi_tag=-1
+idtentry \sym \do_sym has_error_code=\has_error_code rcfi_tag=\rcfi_tag ccfi_tag=\ccfi_tag
+.endm
+#endif
 
+idtentry divide_error do_divide_error has_error_code=0 rcfi_tag=KCFIr_do_divide_error ccfi_tag=KCFIc_divide_error
+idtentry overflow do_overflow has_error_code=0 rcfi_tag=KCFIr_do_overflow ccfi_tag=KCFIc_overflow
+idtentry bounds do_bounds has_error_code=0 rcfi_tag=KCFIr_do_bounds ccfi_tag=KCFIc_bounds
+idtentry invalid_op do_invalid_op has_error_code=0 rcfi_tag=KCFIr_do_invalid_op ccfi_tag=KCFIc_invalid_op
+idtentry device_not_available do_device_not_available has_error_code=0 rcfi_tag=KCFIr_do_device_not_available ccfi_tag=KCFIc_device_not_available
+idtentry double_fault do_double_fault has_error_code=1 paranoid=1 rcfi_tag=KCFIr_do_double_fault ccfi_tag=KCFIc_double_fault
+idtentry coprocessor_segment_overrun do_coprocessor_segment_overrun has_error_code=0 rcfi_tag=KCFIr_do_coprocessor_segment_overrun ccfi_tag=KCFIc_coprocessor_segment_overrun
+idtentry invalid_TSS do_invalid_TSS has_error_code=1 rcfi_tag=KCFIr_do_invalid_TSS ccfi_tag=KCFIc_invalid_TSS
+idtentry segment_not_present do_segment_not_present has_error_code=1 rcfi_tag=KCFIr_do_segment_not_present ccfi_tag=KCFIc_segment_not_present
+idtentry spurious_interrupt_bug do_spurious_interrupt_bug has_error_code=0 rcfi_tag=KCFIr_do_spurious_interrupt_bug ccfi_tag=KCFIc_spurious_interrupt_bug
+idtentry coprocessor_error do_coprocessor_error has_error_code=0 rcfi_tag=KCFIr_do_coprocessor_error ccfi_tag=KCFIc_coprocessor_error
+idtentry alignment_check do_alignment_check has_error_code=1 rcfi_tag=KCFIr_do_alignment_check ccfi_tag=KCFIc_alignment_check
+idtentry simd_coprocessor_error do_simd_coprocessor_error has_error_code=0 rcfi_tag=KCFIr_do_simd_coprocessor_error ccfi_tag=KCFIc_simd_coprocessor_error
+#endif
 
 	/* Reload gs selector with exception handling */
 	/* edi:  new selector */
@@ -1130,7 +1359,18 @@ gs_change:
 2:	mfence		/* workaround */
 	SWAPGS
 	popfq_cfi
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_gs_change, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 END(native_load_gs_index)
 
@@ -1155,17 +1395,33 @@ ENTRY(do_softirq_own_stack)
 	cmove PER_CPU_VAR(irq_stack_ptr),%rsp
 	push  %rbp			# backlink for old unwinder
 	call __do_softirq
+	KCFI_TAG KCFIr___do_softirq /* kCFI INSTR */
 	leaveq
 	CFI_RESTORE		rbp
 	CFI_DEF_CFA_REGISTER	rsp
 	CFI_ADJUST_CFA_OFFSET   -8
 	decl PER_CPU_VAR(irq_count)
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_do_softirq_own_stack, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 END(do_softirq_own_stack)
 
 #ifdef CONFIG_XEN
+#ifdef CONFIG_KCFI
+idtentry xen_hypervisor_callback xen_do_hypervisor_callback has_error_code=0 cfi_tag=KCFIr_xen_do_hypervisor_callback
+#else
 idtentry xen_hypervisor_callback xen_do_hypervisor_callback has_error_code=0
+#endif
 
 /*
  * A note on the "critical region" in our callback handler.
@@ -1271,6 +1527,7 @@ apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
 	hyperv_callback_vector hyperv_vector_handler
 #endif /* CONFIG_HYPERV */
 
+#ifndef CONFIG_KCFI
 idtentry debug do_debug has_error_code=0 paranoid=1 shift_ist=DEBUG_STACK
 idtentry int3 do_int3 has_error_code=0 paranoid=1 shift_ist=DEBUG_STACK
 idtentry stack_segment do_stack_segment has_error_code=1
@@ -1285,9 +1542,37 @@ trace_idtentry page_fault do_page_fault has_error_code=1
 idtentry async_page_fault do_async_page_fault has_error_code=1
 #endif
 #ifdef CONFIG_X86_MCE
-idtentry machine_check has_error_code=0 paranoid=1 do_sym=*machine_check_vector(%rip)
+idtentry machine_check has_error_code=0 paranoid=1 \
+  do_sym=*machine_check_vector(%rip)
 #endif
-
+#else
+idtentry debug do_debug has_error_code=0 paranoid=1 shift_ist=DEBUG_STACK \
+  rcfi_tag=KCFIr_do_debug ccfi_tag=KCFIc_debug
+idtentry int3 do_int3 has_error_code=0 paranoid=1 shift_ist=DEBUG_STACK \
+  rcfi_tag=KCFIr_do_int3 ccfi_tag=KCFIc_int3
+idtentry stack_segment do_stack_segment has_error_code=1 \
+  rcfi_tag=KCFIr_do_stack_segment ccfi_tag=KCFIc_stack_segment
+#ifdef CONFIG_XEN
+idtentry xen_debug do_debug has_error_code=0 rcfi_tag=KCFIr_do_debug \
+  ccfi_tag=KCFIc_xen_debug
+idtentry xen_int3 do_int3 has_error_code=0 rcfi_tag=KCFIr_do_int3 \
+  ccfi_tag=KCFIc_xen_int3
+idtentry xen_stack_segment do_stack_segment has_error_code=1 \
+  rcfi_tag=KCFIr_do_stack_segment ccfi_tag=KCFIc_xen_stack_segment
+#endif
+idtentry general_protection do_general_protection has_error_code=1 \
+  rcfi_tag=KCFIr_do_general_protection ccfi_tag=KCFIc_general_protection
+trace_idtentry page_fault do_page_fault has_error_code=1 \
+  rcfi_tag=KCFIr_do_page_fault ccfi_tag=KCFIc_page_fault
+#ifdef CONFIG_KVM_GUEST
+idtentry async_page_fault do_async_page_fault has_error_code=1 \
+  rcfi_tag=KCFIr_do_async_page_fault ccfi_Tag=KCFIc_async_page_fault
+#endif
+#ifdef CONFIG_X86_MCE
+idtentry machine_check has_error_code=0 paranoid=1 \
+  rcfi_tag=KCFIr_do_machine_check do_sym=*machine_check_vector(%rip)
+#endif
+#endif /* CONFIG_KCFI */
 	/*
 	 * "Paranoid" exit path from exception stack.
 	 * Paranoid because this is used by NMIs and cannot take
@@ -1326,6 +1611,7 @@ paranoid_userspace:
 	jz paranoid_swapgs
 	movq %rsp,%rdi			/* &pt_regs */
 	call sync_regs
+	KCFI_TAG KCFIr_sync_regs /* kCFI INSTR */
 	movq %rax,%rsp			/* switch stack for scheduling */
 	testl $_TIF_NEED_RESCHED,%ebx
 	jnz paranoid_schedule
@@ -1335,6 +1621,7 @@ paranoid_userspace:
 	xorl %esi,%esi 			/* arg2: oldset */
 	movq %rsp,%rdi 			/* arg1: &pt_regs */
 	call do_notify_resume
+	KCFI_TAG KCFIr_do_notify_resume /* kCFI INSTR */
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	jmp paranoid_userspace
@@ -1379,7 +1666,18 @@ error_swapgs:
 	SWAPGS
 error_sti:
 	TRACE_IRQS_OFF
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_error_entry, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 
 /*
  * There are two places in the kernel that can potentially fault with
@@ -1409,6 +1707,7 @@ error_bad_iret:
 	SWAPGS
 	mov %rsp,%rdi
 	call fixup_bad_iret
+	KCFI_TAG KCFIr_fixup_bad_iret /* kCFI INSTR */
 	mov %rax,%rsp
 	decl %ebx	/* Return to usergs */
 	jmp error_sti
@@ -1649,6 +1948,7 @@ end_repeat_nmi:
 	 * exceptions might do.
 	 */
 	call save_paranoid
+	KCFI_TAG KCFIr_save_paranoid /* kCFI INSTR */
 	DEFAULT_FRAME 0
 
 	/*
@@ -1666,6 +1966,7 @@ end_repeat_nmi:
 	movq %rsp,%rdi
 	movq $-1,%rsi
 	call do_nmi
+	KCFI_TAG KCFIr_do_nmi /* kCFI INSTR */
 
 	/* Did the NMI take a page fault? Restore cr2 if it did */
 	movq %cr2, %rcx

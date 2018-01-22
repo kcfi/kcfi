@@ -3,6 +3,8 @@
 #include <asm/dwarf2.h>
 #include <asm/asm.h>
 #include <asm/msr.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 #ifdef CONFIG_X86_64
 /*
@@ -11,8 +13,13 @@
  * reg layout: u32 gprs[eax, ecx, edx, ebx, esp, ebp, esi, edi]
  *
  */
+#ifdef CONFIG_KCFI
+.macro op_safe_regs op, tag=0
+ENTRY_KCFI(\op\()_safe_regs, \tag)
+#else
 .macro op_safe_regs op
 ENTRY(\op\()_safe_regs)
+#endif
 	CFI_STARTPROC
 	pushq_cfi %rbx
 	pushq_cfi %rbp
@@ -37,7 +44,19 @@ ENTRY(\op\()_safe_regs)
 	movl    %edi, 28(%r10)
 	popq_cfi %rbp
 	popq_cfi %rbx
-	ret
+
+#ifdef CONFIG_KCFI
+        push    %r11
+        mov     8(%rsp), %r11
+        cmpl    $\tag, 4(%r11)
+        pop     %r11
+        jne     1337f
+        ret
+        1337:
+        call    asm_violation_handler
+#else
+        ret
+#endif
 3:
 	CFI_RESTORE_STATE
 	movl    $-EIO, %r11d
@@ -97,6 +116,10 @@ ENDPROC(\op\()_safe_regs)
 
 #endif
 
+#ifdef CONFIG_KCFI
+op_safe_regs rdmsr KCFIc_rdmsr_safe_regs
+op_safe_regs wrmsr KCFIc_wrmsr_safe_regs
+#else
 op_safe_regs rdmsr
 op_safe_regs wrmsr
-
+#endif

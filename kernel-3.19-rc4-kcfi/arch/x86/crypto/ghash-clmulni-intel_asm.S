@@ -18,6 +18,8 @@
 
 #include <linux/linkage.h>
 #include <asm/inst.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 .data
 
@@ -89,7 +91,18 @@ __clmul_gf128mul_ble:
 	psrlq $1, T2
 	pxor T2, T1
 	pxor T1, DATA
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr___clmul_gf128mul_ble, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 ENDPROC(__clmul_gf128mul_ble)
 
 /* void clmul_ghash_mul(char *dst, const u128 *shash) */
@@ -101,7 +114,18 @@ ENTRY(clmul_ghash_mul)
 	call __clmul_gf128mul_ble
 	PSHUFB_XMM BSWAP DATA
 	movups DATA, (%rdi)
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_clmul_ghash_mul, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 ENDPROC(clmul_ghash_mul)
 
 /*
@@ -128,5 +152,16 @@ ENTRY(clmul_ghash_update)
 	PSHUFB_XMM BSWAP DATA
 	movups DATA, (%rdi)
 .Lupdate_just_ret:
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_clmul_ghash_update, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 ENDPROC(clmul_ghash_update)

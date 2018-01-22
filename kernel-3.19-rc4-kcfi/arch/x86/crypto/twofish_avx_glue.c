@@ -48,10 +48,8 @@
 #define TWOFISH_PARALLEL_BLOCKS 8
 
 /* 8-way parallel cipher functions */
-asmlinkage void twofish_ecb_enc_8way(struct twofish_ctx *ctx, u8 *dst,
-				     const u8 *src);
-asmlinkage void twofish_ecb_dec_8way(struct twofish_ctx *ctx, u8 *dst,
-				     const u8 *src);
+asmlinkage void twofish_ecb_enc_8way(void *ctx, u8 *dst, const u8 *src);
+asmlinkage void twofish_ecb_dec_8way(void *ctx, u8 *dst, const u8 *src);
 
 asmlinkage void twofish_cbc_dec_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src);
@@ -63,10 +61,9 @@ asmlinkage void twofish_xts_enc_8way(struct twofish_ctx *ctx, u8 *dst,
 asmlinkage void twofish_xts_dec_8way(struct twofish_ctx *ctx, u8 *dst,
 				     const u8 *src, le128 *iv);
 
-static inline void twofish_enc_blk_3way(struct twofish_ctx *ctx, u8 *dst,
-					const u8 *src)
+static inline void twofish_enc_blk_3way(void *ctx, u8 *dst, const u8 *src)
 {
-	__twofish_enc_blk_3way(ctx, dst, src, false);
+	__twofish_enc_blk_3way((struct twofish_ctx *) ctx, dst, src, false);
 }
 
 static void twofish_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv)

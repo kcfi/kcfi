@@ -59,6 +59,8 @@
 #
 
 #include <linux/linkage.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 .text
 
@@ -367,7 +369,18 @@ _cleanup:
 	# scale the result back to 16 bits
 	shr	$16, %eax
 	mov     %rcx, %rsp
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_crc_t10dif_pcl, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 
 ########################################################################
 

@@ -21,6 +21,8 @@
  */
 
 #include <linux/linkage.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 .file "blowfish-x86_64-asm.S"
 .text
@@ -149,10 +151,32 @@ ENTRY(__blowfish_enc_blk)
 	jnz .L__enc_xor;
 
 	write_block();
-	ret;
+#ifdef CONFIG_KCFI
+        push  %r11;
+        mov   8(%rsp), %r11;
+        cmpl  $KCFIr___blowfish_enc_blk , 4(%r11);
+        pop   %r11;
+        jne   1337f;
+        retq;
+        1337:
+        callq asm_violation_handler;
+#else
+        retq;
+#endif
 .L__enc_xor:
 	xor_block();
-	ret;
+#ifdef CONFIG_KCFI
+        push  %r11;
+        mov   8(%rsp), %r11;
+        cmpl  $KCFIr___blowfish_enc_blk , 4(%r11);
+        pop   %r11;
+        jne   1337f;
+        retq;
+        1337:
+        callq asm_violation_handler;
+#else
+        retq;
+#endif
 ENDPROC(__blowfish_enc_blk)
 
 ENTRY(blowfish_dec_blk)
@@ -183,7 +207,18 @@ ENTRY(blowfish_dec_blk)
 
 	movq %r11, %rbp;
 
-	ret;
+#ifdef CONFIG_KCFI
+        push  %r11;
+        mov   8(%rsp), %r11;
+        cmpl  $KCFIr_blowfish_dec_blk , 4(%r11);
+        pop   %r11;
+        jne   1337f;
+        retq;
+        1337:
+        callq asm_violation_handler;
+#else
+        retq;
+#endif
 ENDPROC(blowfish_dec_blk)
 
 /**********************************************************************
@@ -334,14 +369,36 @@ ENTRY(__blowfish_enc_blk_4way)
 
 	popq %rbx;
 	popq %rbp;
-	ret;
+#ifdef CONFIG_KCFI
+        push  %r11;
+        mov   8(%rsp), %r11;
+        cmpl  $KCFIr___blowfish_enc_blk_4way , 4(%r11);
+        pop   %r11;
+        jne   1337f;
+        retq;
+        1337:
+        callq asm_violation_handler;
+#else
+        retq;
+#endif
 
 .L__enc_xor4:
 	xor_block4();
 
 	popq %rbx;
 	popq %rbp;
-	ret;
+#ifdef CONFIG_KCFI
+        push  %r11;
+        mov   8(%rsp), %r11;
+        cmpl  $KCFIr___blowfish_enc_blk_4way , 4(%r11);
+        pop   %r11;
+        jne   1337f;
+        retq;
+        1337:
+        callq asm_violation_handler;
+#else
+        retq;
+#endif
 ENDPROC(__blowfish_enc_blk_4way)
 
 ENTRY(blowfish_dec_blk_4way)
@@ -374,6 +431,16 @@ ENTRY(blowfish_dec_blk_4way)
 
 	popq %rbx;
 	popq %rbp;
-
-	ret;
+#ifdef CONFIG_KCFI
+        push  %r11;
+        mov   8(%rsp), %r11;
+        cmpl  $KCFIr_blowfish_dec_blk_4way , 4(%r11);
+        pop   %r11;
+        jne   1337f;
+        retq;
+        1337:
+        callq asm_violation_handler;
+#else
+        retq;
+#endif
 ENDPROC(blowfish_dec_blk_4way)

@@ -7,6 +7,8 @@
 #
 #
 
+KBUILD_CFLAGS += -mllvm -cfi-no-checks
+
 subdir- := rm
 
 obj-y += init.o

@@ -30,6 +30,18 @@
 #define INTERRUPT_RETURN iretq
 #endif
 
+#ifdef CONFIG_KCFI
+#include <kcfi/kcfi_tags.h>
+.macro KCFI_TAG tag=-1
+	nopl \tag
+.endm
+#else
+.macro KCFI_TAG tag=-1
+.endm
+#endif
+
+
+
 /* we are not able to switch in one step to the final KERNEL ADDRESS SPACE
  * because we need identity-mapped pages.
  *
@@ -367,12 +379,14 @@ ENTRY(early_idt_handler)
 	jnz 10f
 	GET_CR2_INTO(%rdi)	# can clobber any volatile register if pv
 	call early_make_pgtable
+	KCFI_TAG KCFIr_early_make_pgtable /* kCFI INSTR */
 	andl %eax,%eax
 	jz 20f			# All good
 
 10:
 	leaq 88(%rsp),%rdi	# Pointer to %rip
 	call early_fixup_exception
+	KCFI_TAG KCFIr_early_fixup_exception /* kCFI INSTR */
 	andl %eax,%eax
 	jnz 20f			# Found an exception entry
 
@@ -386,13 +400,16 @@ ENTRY(early_idt_handler)
 	xorl %eax,%eax
 	leaq early_idt_msg(%rip),%rdi
 	call early_printk
+	KCFI_TAG KCFIr_early_printk /* kCFI INSTR */
 	cmpl $2,early_recursion_flag(%rip)
 	jz  1f
 	call dump_stack
+	KCFI_TAG KCFIr_dump_stack /* kCFI INSTR */
 #ifdef CONFIG_KALLSYMS	
 	leaq early_idt_ripmsg(%rip),%rdi
 	movq 40(%rsp),%rsi	# %rip again
 	call __print_symbol
+	KCFI_TAG KCFIr___print_symbol /* kCFI INSTR */
 #endif
 #endif /* EARLY_PRINTK */
 1:	hlt

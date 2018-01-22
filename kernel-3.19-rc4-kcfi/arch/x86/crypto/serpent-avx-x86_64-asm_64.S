@@ -24,6 +24,8 @@
  */
 
 #include <linux/linkage.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 #include "glue_helper-asm-avx.S"
 
 .file "serpent-avx-x86_64-asm_64.S"
@@ -618,7 +620,18 @@ __serpent_enc_blk8_avx:
 	write_blocks(RA1, RB1, RC1, RD1, RK0, RK1, RK2);
 	write_blocks(RA2, RB2, RC2, RD2, RK0, RK1, RK2);
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr___serpent_enc_blk8_avx, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(__serpent_enc_blk8_avx)
 
 .align 8
@@ -672,7 +685,18 @@ __serpent_dec_blk8_avx:
 	write_blocks(RC1, RD1, RB1, RE1, RK0, RK1, RK2);
 	write_blocks(RC2, RD2, RB2, RE2, RK0, RK1, RK2);
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr___serpent_dec_blk8_avx, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(__serpent_dec_blk8_avx)
 
 ENTRY(serpent_ecb_enc_8way_avx)
@@ -688,7 +712,18 @@ ENTRY(serpent_ecb_enc_8way_avx)
 
 	store_8way(%rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_serpent_ecb_enc_8way_avx, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(serpent_ecb_enc_8way_avx)
 
 ENTRY(serpent_ecb_dec_8way_avx)
@@ -704,7 +739,18 @@ ENTRY(serpent_ecb_dec_8way_avx)
 
 	store_8way(%rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_serpent_ecb_dec_8way_avx, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(serpent_ecb_dec_8way_avx)
 
 ENTRY(serpent_cbc_dec_8way_avx)
@@ -720,7 +766,18 @@ ENTRY(serpent_cbc_dec_8way_avx)
 
 	store_cbc_8way(%rdx, %rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_serpent_cbc_dec_8way_avx, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(serpent_cbc_dec_8way_avx)
 
 ENTRY(serpent_ctr_8way_avx)
@@ -738,7 +795,18 @@ ENTRY(serpent_ctr_8way_avx)
 
 	store_ctr_8way(%rdx, %rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_serpent_ctr_8way_avx, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(serpent_ctr_8way_avx)
 
 ENTRY(serpent_xts_enc_8way_avx)
@@ -758,7 +826,18 @@ ENTRY(serpent_xts_enc_8way_avx)
 	/* dst <= regs xor IVs(in dst) */
 	store_xts_8way(%rsi, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_serpent_xts_enc_8way_avx, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(serpent_xts_enc_8way_avx)
 
 ENTRY(serpent_xts_dec_8way_avx)
@@ -778,5 +857,16 @@ ENTRY(serpent_xts_dec_8way_avx)
 	/* dst <= regs xor IVs(in dst) */
 	store_xts_8way(%rsi, RC1, RD1, RB1, RE1, RC2, RD2, RB2, RE2);
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_serpent_xts_dec_8way_avx, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(serpent_xts_dec_8way_avx)

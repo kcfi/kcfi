@@ -155,6 +155,15 @@ avx2_instr :=$(call as-instr,vpbroadcastb %xmm0$(comma)%ymm1,-DCONFIG_AS_AVX2=1)
 KBUILD_AFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) $(avx2_instr)
 KBUILD_CFLAGS += $(cfi) $(cfi-sigframe) $(cfi-sections) $(asinstr) $(avx_instr) $(avx2_instr)
 
+ifndef CFI_DISABLE
+ifndef CFI_CFGBUILD
+KBUILD_AFLAGS += -DCONFIG_KCFI
+ifdef CFI_COARSE
+KBUILD_AFLAGS += -DCONFIG_KCFI_COARSE
+endif
+endif
+endif
+
 LDFLAGS := -m elf_$(UTS_MACHINE)
 
 # Speed up the build

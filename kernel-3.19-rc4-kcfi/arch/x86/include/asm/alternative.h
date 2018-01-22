@@ -78,6 +78,8 @@ static inline int alternatives_text_reserved(void *start, void *end)
 
 #define OLDINSTR(oldinstr)	"661:\n\t" oldinstr "\n662:\n"
 
+#define OLDINSTR_CFI(oldinstr, tag)   "661:\n\t" oldinstr "\n662:\nnopl " tag "\n"
+
 #define b_replacement(number)	"663"#number
 #define e_replacement(number)	"664"#number
 
@@ -124,6 +126,23 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	ALTINSTR_REPLACEMENT(newinstr1, feature1, 1)			\
 	ALTINSTR_REPLACEMENT(newinstr2, feature2, 2)			\
 	".popsection"
+
+#define ALTERNATIVE_2_CFI(oldinstr, newinstr1, feature1, newinstr2,     \
+                          feature2, tag)                                \
+	OLDINSTR_CFI(oldinstr, tag)					\
+	".pushsection .altinstructions,\"a\"\n"				\
+	ALTINSTR_ENTRY(feature1, 1)					\
+	ALTINSTR_ENTRY(feature2, 2)					\
+	".popsection\n"							\
+	".pushsection .discard,\"aw\",@progbits\n"			\
+	DISCARD_ENTRY(1)						\
+	DISCARD_ENTRY(2)						\
+	".popsection\n"							\
+	".pushsection .altinstr_replacement, \"ax\"\n"			\
+	ALTINSTR_REPLACEMENT(newinstr1, feature1, 1)			\
+	ALTINSTR_REPLACEMENT(newinstr2, feature2, 2)			\
+	".popsection"
+
 
 /*
  * This must be included *after* the definition of ALTERNATIVE due to
@@ -197,6 +216,13 @@ static inline int alternatives_text_reserved(void *start, void *end)
 		"call %P[new2]", feature2)				      \
 		: output : [old] "i" (oldfunc), [new1] "i" (newfunc1),	      \
 		[new2] "i" (newfunc2), ## input)
+
+#define alternative_call_2_cfi(oldfunc, newfunc1, feat1, newfunc2, feat2,     \
+                               cfitag, output, input...)		      \
+	asm volatile (ALTERNATIVE_2_CFI("call %P[old]", "call %P[new1]",      \
+                                  feat1, "call %P[new2]", feat2, "%P[tag]")   \
+		: output : [old] "i" (oldfunc), [new1] "i" (newfunc1),	      \
+		[new2] "i" (newfunc2), [tag] "i" (cfitag), ## input)          \
 
 /*
  * use this macro(s) if you need more than one output parameter

@@ -24,6 +24,8 @@
  */
 
 #include <linux/linkage.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 .file "cast5-avx-x86_64-asm_64.S"
 
@@ -281,7 +283,18 @@ __cast5_enc_blk16:
 	outunpack_blocks(RR3, RL3, RTMP, RX, RKM);
 	outunpack_blocks(RR4, RL4, RTMP, RX, RKM);
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr___cast5_enc_blk16, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(__cast5_enc_blk16)
 
 .align 16
@@ -352,7 +365,18 @@ __cast5_dec_blk16:
 	outunpack_blocks(RR3, RL3, RTMP, RX, RKM);
 	outunpack_blocks(RR4, RL4, RTMP, RX, RKM);
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr___cast5_dec_blk16, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 
 .L__skip_dec:
 	vpsrldq $4, RKR, RKR;
@@ -388,7 +412,18 @@ ENTRY(cast5_ecb_enc_16way)
 	vmovdqu RR4, (6*4*4)(%r11);
 	vmovdqu RL4, (7*4*4)(%r11);
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_cast5_ecb_enc_16way, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(cast5_ecb_enc_16way)
 
 ENTRY(cast5_ecb_dec_16way)
@@ -420,7 +455,18 @@ ENTRY(cast5_ecb_dec_16way)
 	vmovdqu RR4, (6*4*4)(%r11);
 	vmovdqu RL4, (7*4*4)(%r11);
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_cast5_ecb_dec_16way, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(cast5_ecb_dec_16way)
 
 ENTRY(cast5_cbc_dec_16way)
@@ -469,7 +515,18 @@ ENTRY(cast5_cbc_dec_16way)
 
 	popq %r12;
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_cast5_cbc_dec_16way, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(cast5_cbc_dec_16way)
 
 ENTRY(cast5_ctr_16way)
@@ -542,5 +599,16 @@ ENTRY(cast5_ctr_16way)
 
 	popq %r12;
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_cast5_ctr_16way, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(cast5_ctr_16way)

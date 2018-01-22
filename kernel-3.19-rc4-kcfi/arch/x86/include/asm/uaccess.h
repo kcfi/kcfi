@@ -170,6 +170,53 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
  * Clang/LLVM cares about the size of the register, but still wants
  * the base register for something that ends up being a pair.
  */
+
+#ifdef CONFIG_KCFI
+
+#ifndef CONFIG_KCFI_COARSE
+
+#define get_user(x, ptr)						\
+({									\
+	int __ret_gu;							\
+	register __inttype(*(ptr)) __val_gu asm("%"_ASM_DX);		\
+	__chk_user_ptr(ptr);						\
+	might_fault();							\
+	asm volatile("call __get_user_%P3\nnopl 0x00dead03"             \
+		     : "=a" (__ret_gu), "=r" (__val_gu)			\
+		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
+	(x) = (__typeof__(*(ptr))) __val_gu;				\
+	__ret_gu;							\
+})
+
+#define __put_user_x(size, x, ptr, __ret_pu)			        \
+	asm volatile("call __put_user_" #size "\nnopl 0x00dead04"       \
+                     : "=a" (__ret_pu)	\
+		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
+
+#else /* CONFIG_KCFI_COARSE */
+
+#define get_user(x, ptr)						\
+({									\
+	int __ret_gu;							\
+	register __inttype(*(ptr)) __val_gu asm("%"_ASM_DX);		\
+	__chk_user_ptr(ptr);						\
+	might_fault();							\
+	asm volatile("call __get_user_%P3\nnopl 0x1337beef"             \
+		     : "=a" (__ret_gu), "=r" (__val_gu)			\
+		     : "0" (ptr), "i" (sizeof(*(ptr))));		\
+	(x) = (__typeof__(*(ptr))) __val_gu;				\
+	__ret_gu;							\
+})
+
+#define __put_user_x(size, x, ptr, __ret_pu)			        \
+	asm volatile("call __put_user_" #size "\nnopl 0x1337beef"       \
+                     : "=a" (__ret_pu)	\
+		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
+
+#endif /* CONFIG_KCFI_COARSE */
+
+#else
+
 #define get_user(x, ptr)						\
 ({									\
 	int __ret_gu;							\
@@ -188,6 +235,7 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 		     : "0" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
 
 
+#endif /* CONFIG_KCFI */
 
 #ifdef CONFIG_X86_32
 #define __put_user_asm_u64(x, addr, err, errret)			\
@@ -213,9 +261,24 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 		     _ASM_EXTABLE_EX(2b, 3b)				\
 		     : : "A" (x), "r" (addr))
 
+#ifdef CONFIG_KCFI
+#ifndef CONFIG_KCFI_COARSE
+#define __put_user_x8(x, ptr, __ret_pu)				        \
+	asm volatile("call __put_user_8\nnopl 0x00dead04"               \
+                     : "=a" (__ret_pu)	\
+		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
+#else
+#define __put_user_x8(x, ptr, __ret_pu)				        \
+	asm volatile("call __put_user_8\nnopl 0x1337beef"               \
+                     : "=a" (__ret_pu)	\
+		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
+#endif /* CONFIG_KCFI_COARSE */
+#else
+
 #define __put_user_x8(x, ptr, __ret_pu)				\
 	asm volatile("call __put_user_8" : "=a" (__ret_pu)	\
 		     : "A" ((typeof(*(ptr)))(x)), "c" (ptr) : "ebx")
+#endif /* CONFIG_KCFI */
 #else
 #define __put_user_asm_u64(x, ptr, retval, errret) \
 	__put_user_asm(x, ptr, retval, "q", "", "er", errret)

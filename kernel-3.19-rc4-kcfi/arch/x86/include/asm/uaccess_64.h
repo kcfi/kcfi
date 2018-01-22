@@ -10,6 +10,8 @@
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
 #include <asm/page.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 /*
  * Copy To/From Userspace
@@ -33,6 +35,18 @@ copy_user_generic(void *to, const void *from, unsigned len)
 	 * Otherwise, if CPU has rep_good feature, use copy_user_generic_string.
 	 * Otherwise, use copy_user_generic_unrolled.
 	 */
+#ifdef CONFIG_KCFI
+	alternative_call_2_cfi(copy_user_generic_unrolled,
+			 copy_user_generic_string,
+			 X86_FEATURE_REP_GOOD,
+			 copy_user_enhanced_fast_string,
+			 X86_FEATURE_ERMS,
+                         KCFIr_copy_user_generic_unrolled,
+			 ASM_OUTPUT2("=a" (ret), "=D" (to), "=S" (from),
+				     "=d" (len)),
+			 "1" (to), "2" (from), "3" (len)
+			 : "memory", "rcx", "r8", "r9", "r10", "r11");
+#else	
 	alternative_call_2(copy_user_generic_unrolled,
 			 copy_user_generic_string,
 			 X86_FEATURE_REP_GOOD,
@@ -42,6 +56,7 @@ copy_user_generic(void *to, const void *from, unsigned len)
 				     "=d" (len)),
 			 "1" (to), "2" (from), "3" (len)
 			 : "memory", "rcx", "r8", "r9", "r10", "r11");
+#endif
 	return ret;
 }
 

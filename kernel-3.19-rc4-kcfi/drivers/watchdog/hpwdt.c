@@ -37,6 +37,8 @@
 #include <asm/cacheflush.h>
 #endif /* CONFIG_HPWDT_NMI_DECODING */
 #include <asm/nmi.h>
+#include <kcfi/kcfi_tags.h>
+#include <kcfi/kcfi.h>
 
 #define HPWDT_VERSION			"1.3.3"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
@@ -371,6 +373,9 @@ asm(".text                      \n\t"
     "movl       20(%r9),%edi    \n\t"
     "movl       (%r9),%eax      \n\t"
     "call       *%r12           \n\t"
+#ifdef CONFIG_KCFI
+    "nopl " TAG_STR(KCFIr_asminline_call) " \n\t"
+#endif
     "pushfq                     \n\t"
     "popq        %r12           \n\t"
     "movl       %eax, (%r9)     \n\t"
@@ -387,7 +392,18 @@ asm(".text                      \n\t"
     "popq       %rbx            \n\t"
     "popq       %rax            \n\t"
     "leave                      \n\t"
+#ifdef CONFIG_KCFI
+    "push       %r11            \n\t"
+    "mov        8(%rsp), %r11   \n\t"
+    "cmpl $" TAG_STR(KCFIr_asminline_call) ", 4(%r11)\n\t"
+    "pop        %r11            \n\t"
+    "jne        1337f           \n\t"
     "ret                        \n\t"
+    "1337:                      \n\t"
+    "call asm_violation_handler \n\t"
+#else
+    "ret                        \n\t"
+#endif
     ".previous");
 
 /*

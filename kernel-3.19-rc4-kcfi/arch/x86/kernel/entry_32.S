@@ -58,6 +58,8 @@
 #include <asm/alternative-asm.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 /* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
 #include <linux/elf-em.h>
@@ -291,6 +293,7 @@ ENTRY(ret_from_fork)
 	CFI_STARTPROC
 	pushl_cfi %eax
 	call schedule_tail
+	KCFI_TAG(KCFIr_schedule_tail) /* kCFI INSTR */
 	GET_THREAD_INFO(%ebp)
 	popl_cfi %eax
 	pushl_cfi $0x0202		# Reset kernel eflags
@@ -303,12 +306,14 @@ ENTRY(ret_from_kernel_thread)
 	CFI_STARTPROC
 	pushl_cfi %eax
 	call schedule_tail
+	KCFI_TAG(KCFIr_schedule_tail) /* kCFI INSTR */
 	GET_THREAD_INFO(%ebp)
 	popl_cfi %eax
 	pushl_cfi $0x0202		# Reset kernel eflags
 	popfl_cfi
 	movl PT_EBP(%esp),%eax
 	call *PT_EBX(%esp)
+	KCFI_TAG(0x00dead00) /* kCFI INSTR */
 	movl $0,PT_EAX(%esp)
 	jmp syscall_exit
 	CFI_ENDPROC
@@ -364,6 +369,7 @@ need_resched:
 	testl $X86_EFLAGS_IF,PT_EFLAGS(%esp)	# interrupts off (exception path) ?
 	jz restore_all
 	call preempt_schedule_irq
+	KCFI_TAG(KCFIr_preempt_schedule_irq) /* kCFI INSTR */
 	jmp need_resched
 END(resume_kernel)
 #endif
@@ -425,6 +431,7 @@ sysenter_do_call:
 	cmpl $(NR_syscalls), %eax
 	jae sysenter_badsys
 	call *sys_call_table(,%eax,4)
+	KCFI_TAG(0x00deadcb) /* kCFI INSTR */
 sysenter_after_call:
 	movl %eax,PT_EAX(%esp)
 	LOCKDEP_SYS_EXIT
@@ -500,6 +507,7 @@ ENTRY(system_call)
 	jae syscall_badsys
 syscall_call:
 	call *sys_call_table(,%eax,4)
+	KCFI_TAG(0x00deadcb) /* kCFI INSTR */
 syscall_after_call:
 	movl %eax,PT_EAX(%esp)		# store the return value
 syscall_exit:
@@ -595,6 +603,7 @@ work_pending:
 	jz work_notifysig
 work_resched:
 	call schedule
+	KCFI_TAG(KCFIr_schedule) /* kCFI INSTR */
 	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_ANY)	# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
@@ -626,6 +635,7 @@ work_notifysig:				# deal with pending signals and
 	jb resume_kernel
 	xorl %edx, %edx
 	call do_notify_resume
+	KCFI_TAG(KCFIr_do_notify_resume) /* kCFI INSTR */
 	jmp resume_userspace
 
 #ifdef CONFIG_VM86
@@ -645,6 +655,7 @@ syscall_trace_entry:
 	movl $-ENOSYS,PT_EAX(%esp)
 	movl %esp, %eax
 	call syscall_trace_enter
+	KCFI_TAG(KCFIr_syscall_trace_enter) /* kCFI INSTR */
 	/* What it returned is what we'll actually use.  */
 	cmpl $(NR_syscalls), %eax
 	jnae syscall_call
@@ -661,6 +672,7 @@ syscall_exit_work:
 					# schedule() instead
 	movl %esp, %eax
 	call syscall_trace_leave
+	KCFI_TAG(KCFIr_syscall_trace_leave) /* kCFI INSTR */
 	jmp resume_userspace
 END(syscall_exit_work)
 	CFI_ENDPROC
@@ -769,6 +781,7 @@ common_interrupt:
 	TRACE_IRQS_OFF
 	movl %esp,%eax
 	call do_IRQ
+	KCFI_TAG(KCFIr_do_IRQ) /* kCFI INSTR */
 	jmp ret_from_intr
 ENDPROC(common_interrupt)
 	CFI_ENDPROC
@@ -1177,6 +1190,7 @@ trace:
 	subl $MCOUNT_INSN_SIZE, %eax
 
 	call *ftrace_trace_function
+	KCFI_TAG(0x00dead00) /* kCFI INSTR */
 
 	popl %edx
 	popl %ecx
@@ -1267,6 +1281,7 @@ error_code:
 	TRACE_IRQS_OFF
 	movl %esp,%eax			# pt_regs pointer
 	call *%edi
+	KCFI_TAG(0x00dead00) /* kCFI INSTR */
 	jmp ret_from_exception
 	CFI_ENDPROC
 END(page_fault)
@@ -1310,6 +1325,7 @@ debug_stack_correct:
 	xorl %edx,%edx			# error code 0
 	movl %esp,%eax			# pt_regs pointer
 	call do_debug
+	KCFI_TAG(KCFIr_do_debug) /* kCFI INSTR */
 	jmp ret_from_exception
 	CFI_ENDPROC
 END(debug)
@@ -1352,6 +1368,7 @@ nmi_stack_correct:
 	xorl %edx,%edx		# zero error code
 	movl %esp,%eax		# pt_regs pointer
 	call do_nmi
+	KCFI_TAG(KCFIr_do_nmi) /* kCFI INSTR */
 	jmp restore_all_notrace
 	CFI_ENDPROC
 
@@ -1389,6 +1406,7 @@ nmi_espfix_stack:
 	FIXUP_ESPFIX_STACK		# %eax == %esp
 	xorl %edx,%edx			# zero error code
 	call do_nmi
+	KCFI_TAG(KCFIr_do_nmi) /* kCFI INSTR */
 	RESTORE_REGS
 	lss 12+4(%esp), %esp		# back to espfix stack
 	CFI_ADJUST_CFA_OFFSET -24
@@ -1406,6 +1424,7 @@ ENTRY(int3)
 	xorl %edx,%edx		# zero error code
 	movl %esp,%eax		# pt_regs pointer
 	call do_int3
+	KCFI_TAG(KCFIr_do_int3) /* kCFI INSTR */
 	jmp ret_from_exception
 	CFI_ENDPROC
 END(int3)

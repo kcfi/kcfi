@@ -302,7 +302,7 @@ HOSTCXXFLAGS = -O2
 
 ifeq ($(shell $(HOSTCC) -v 2>&1 | grep -c "clang version"), 1)
 HOSTCFLAGS  += -Wno-unused-value -Wno-unused-parameter \
-		-Wno-missing-field-initializers
+		-Wno-missing-field-initializers -mllvm -master-disable-cfi
 endif
 
 # Decide whether to build built-in, modular, or both.
@@ -694,6 +694,43 @@ KBUILD_CFLAGS += $(call cc-disable-warning, gnu)
 KBUILD_CFLAGS += -Wno-asm-operand-widths
 KBUILD_CFLAGS += -Wno-initializer-overrides
 KBUILD_CFLAGS += -fno-builtin
+
+ifdef CFI_DISABLE
+KBUILD_CFLAGS += -mllvm -master-disable-cfi
+else
+
+KBUILD_CFLAGS += -DCONFIG_KCFI
+
+ifdef CFI_MAP_DECL
+KBUILD_CFLAGS += -mllvm -cfi-map-declarations
+endif
+
+ifdef CFI_CFGBUILD
+KBUILD_CFLAGS += -mllvm -cfi-build-cfg
+KBUILD_CFLAGS := $(filter-out -DCONFIG_KCFI,$(KBUILD_CFLAGS))
+endif
+
+ifdef CFI_COARSE
+KBUILD_CFLAGS += -mllvm -cfi-coarse -DCONFIG_KCFI_COARSE
+endif
+
+ifdef CFI_FWD
+KBUILD_CFLAGS += -mllvm -cfi-fwd -DCFI_FWD_ASM=1
+endif
+
+ifdef CFI_SMALLCLONE
+KBUILD_CFLAGS += -mllvm -cfi-cgd
+endif
+
+ifdef CFIV
+KBUILD_CFLAGS += -mllvm -cfi-verbose
+endif
+
+ifdef CFINOTAIL
+KBUILD_CFLAGS += -fno-optimize-sibling-calls
+endif
+
+endif
 
 #KBUILD_CFLAGS += $(KBUILD_CFI)
 

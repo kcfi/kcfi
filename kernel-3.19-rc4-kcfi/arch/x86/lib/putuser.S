@@ -16,6 +16,7 @@
 #include <asm/errno.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
+#include <kcfi/kcfi_tags.h>
 
 
 /*
@@ -30,10 +31,23 @@
  * as they get called from within inline assembly.
  */
 
+#ifdef CONFIG_KCFI
+#define KCFI_CHECK      push %r11;                            \
+                        mov 8(%rsp), %r11;                    \
+                        cmpl $KCFIr___put_user_1, 4(%r11);    \
+                        pop %r11;                             \
+                        jne 1337f;                            \
+                        ret;                                  \
+                        1337:;                                \
+                        call asm_violation_handler;
+#else
+#define KCFI_CHECK      ret;
+#endif
+
 #define ENTER	CFI_STARTPROC ; \
 		GET_THREAD_INFO(%_ASM_BX)
 #define EXIT	ASM_CLAC ;	\
-		ret ;		\
+		KCFI_CHECK ;	\
 		CFI_ENDPROC
 
 .text

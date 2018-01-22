@@ -38,6 +38,8 @@
 
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
+#include <kcfi/kcfi_tags.h>
+#include <kcfi/kcfi_snippets.h>
 
 #define tlen 1024   // length of each of 4 'xor' arrays (256 32-bit words)
 
@@ -286,7 +288,20 @@ ENTRY(aes_enc_blk)
 	pop     %ebx
 	mov     %r0,(%ebp)
 	pop     %ebp
-	ret
+
+#ifdef CONFIG_KCFI
+        push  %r11;
+        mov   8(%rsp), %r11;
+        cmpl  $KCFIr_aes_enc_blk , 4(%r11);
+        pop   %r11;
+        jne   1337f;
+        retq;
+        1337:
+        callq asm_violation_handler;
+#else
+        retq;
+#endif
+#endif
 ENDPROC(aes_enc_blk)
 
 // AES (Rijndael) Decryption Subroutine

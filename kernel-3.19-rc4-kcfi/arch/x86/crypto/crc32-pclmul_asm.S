@@ -39,6 +39,8 @@
 
 #include <linux/linkage.h>
 #include <asm/inst.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 
 .align 16
@@ -242,5 +244,16 @@ fold_64:
 	pxor    %xmm2, %xmm1
 	PEXTRD  0x01, %xmm1, %eax
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_fold_64, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 ENDPROC(crc32_pclmul_le_16)

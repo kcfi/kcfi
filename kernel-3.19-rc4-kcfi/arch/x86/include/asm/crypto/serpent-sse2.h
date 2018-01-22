@@ -13,10 +13,9 @@ asmlinkage void __serpent_enc_blk_4way(struct serpent_ctx *ctx, u8 *dst,
 asmlinkage void serpent_dec_blk_4way(struct serpent_ctx *ctx, u8 *dst,
 				     const u8 *src);
 
-static inline void serpent_enc_blk_xway(struct serpent_ctx *ctx, u8 *dst,
-					const u8 *src)
+static inline void serpent_enc_blk_xway(void *ctx, u8 *dst, const u8 *src)
 {
-	__serpent_enc_blk_4way(ctx, dst, src, false);
+	__serpent_enc_blk_4way((struct serpent_ctx *) ctx, dst, src, false);
 }
 
 static inline void serpent_enc_blk_xway_xor(struct serpent_ctx *ctx, u8 *dst,
@@ -25,10 +24,9 @@ static inline void serpent_enc_blk_xway_xor(struct serpent_ctx *ctx, u8 *dst,
 	__serpent_enc_blk_4way(ctx, dst, src, true);
 }
 
-static inline void serpent_dec_blk_xway(struct serpent_ctx *ctx, u8 *dst,
-					const u8 *src)
+static inline void serpent_dec_blk_xway(void *ctx, u8 *dst, const u8 *src)
 {
-	serpent_dec_blk_4way(ctx, dst, src);
+	serpent_dec_blk_4way((struct serpent_ctx *) ctx, dst, src);
 }
 
 #else
@@ -40,10 +38,9 @@ asmlinkage void __serpent_enc_blk_8way(struct serpent_ctx *ctx, u8 *dst,
 asmlinkage void serpent_dec_blk_8way(struct serpent_ctx *ctx, u8 *dst,
 				     const u8 *src);
 
-static inline void serpent_enc_blk_xway(struct serpent_ctx *ctx, u8 *dst,
-				   const u8 *src)
+static inline void serpent_enc_blk_xway(void *ctx, u8 *dst, const u8 *src)
 {
-	__serpent_enc_blk_8way(ctx, dst, src, false);
+	__serpent_enc_blk_8way((struct serpent_ctx *) ctx, dst, src, false);
 }
 
 static inline void serpent_enc_blk_xway_xor(struct serpent_ctx *ctx, u8 *dst,
@@ -52,10 +49,9 @@ static inline void serpent_enc_blk_xway_xor(struct serpent_ctx *ctx, u8 *dst,
 	__serpent_enc_blk_8way(ctx, dst, src, true);
 }
 
-static inline void serpent_dec_blk_xway(struct serpent_ctx *ctx, u8 *dst,
-				   const u8 *src)
+static inline void serpent_dec_blk_xway(void *ctx, u8 *dst, const u8 *src)
 {
-	serpent_dec_blk_8way(ctx, dst, src);
+	serpent_dec_blk_8way((struct serpent_ctx *) ctx, dst, src);
 }
 
 #endif

@@ -9,6 +9,8 @@
  */
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 /*
  * Calling convention :
@@ -80,6 +82,7 @@ sk_load_byte_positive_offset:
 	mov	$LEN,%ecx;	/* len */	\
 	lea	- MAX_BPF_STACK + 32(%rbp),%rdx;			\
 	call	skb_copy_bits;			\
+	KCFI_TAG(KCFIr_skb_copy_bits); /* kCFI INSTR */ \
 	test    %eax,%eax;			\
 	pop	SKBDATA;			\
 	pop	%r9;
@@ -113,6 +116,7 @@ bpf_slow_path_byte:
 /* rsi already has offset */					\
 	mov	$SIZE,%edx;	/* size */			\
 	call	bpf_internal_load_pointer_neg_helper;		\
+	KCFI_TAG(KCFIr_bpf_internal_load_pointer_neg_helper); /* kCFI INSTR */ \
 	test	%rax,%rax;					\
 	pop	SKBDATA;					\
 	pop	%r9;						\

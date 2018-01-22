@@ -9,6 +9,8 @@
 #ifndef _ASM_X86_MUTEX_64_H
 #define _ASM_X86_MUTEX_64_H
 
+#include <kcfi/kcfi_tags.h>
+
 /**
  * __mutex_fastpath_lock - decrement and call function if negative
  * @v: pointer of type atomic_t
@@ -40,6 +42,24 @@ do {								\
 	asm volatile(LOCK_PREFIX "   decl (%%rdi)\n"		\
 		     "   jns 1f		\n"			\
 		     "   call " #fail_fn "\n"			\
+		     "1:"					\
+		     : "=D" (dummy)				\
+		     : "D" (v)					\
+		     : "rax", "rsi", "rdx", "rcx",		\
+		       "r8", "r9", "r10", "r11", "memory");	\
+} while (0)
+
+#define __mutex_fastpath_lock_cfi(v, fail_fn, tag)		\
+do {								\
+	unsigned long dummy;					\
+								\
+	typecheck(atomic_t *, v);				\
+	typecheck_fn(void (*)(atomic_t *), fail_fn);		\
+								\
+	asm volatile(LOCK_PREFIX "   decl (%%rdi)\n"		\
+		     "   jns 1f		\n"			\
+		     "   call " #fail_fn "\n"			\
+                     "   nopl " #tag "\n"                       \
 		     "1:"					\
 		     : "=D" (dummy)				\
 		     : "D" (v)					\
@@ -95,6 +115,24 @@ do {								\
 	asm volatile(LOCK_PREFIX "   incl (%%rdi)\n"		\
 		     "   jg 1f\n"				\
 		     "   call " #fail_fn "\n"			\
+		     "1:"					\
+		     : "=D" (dummy)				\
+		     : "D" (v)					\
+		     : "rax", "rsi", "rdx", "rcx",		\
+		       "r8", "r9", "r10", "r11", "memory");	\
+} while (0)
+
+#define __mutex_fastpath_unlock_cfi(v, fail_fn, tag)		\
+do {								\
+	unsigned long dummy;					\
+								\
+	typecheck(atomic_t *, v);				\
+	typecheck_fn(void (*)(atomic_t *), fail_fn);		\
+								\
+	asm volatile(LOCK_PREFIX "   incl (%%rdi)\n"		\
+		     "   jg 1f\n"				\
+		     "   call " #fail_fn "\n"			\
+                     "   nopl " #tag "\n"                       \
 		     "1:"					\
 		     : "=D" (dummy)				\
 		     : "D" (v)					\

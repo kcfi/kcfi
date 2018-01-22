@@ -12,6 +12,9 @@ else
   posttest_64bit = -n
 endif
 
+KBUILD_CFLAGS += -mllvm -disable-cfi
+HOST_EXTRACFLAGS += -mllvm -disable-cfi
+
 distill_awk = $(srctree)/arch/x86/tools/distill.awk
 chkobjdump = $(srctree)/arch/x86/tools/chkobjdump.awk
 

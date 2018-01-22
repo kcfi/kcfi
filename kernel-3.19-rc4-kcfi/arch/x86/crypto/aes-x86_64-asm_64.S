@@ -17,6 +17,7 @@
 
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
+#include <kcfi/kcfi_tags.h>
 
 #define R1	%rax
 #define R1E	%eax
@@ -80,6 +81,23 @@
 	ret;				\
 	ENDPROC(FUNC);
 
+#define epilogue_cfi(FUNC,r1,r2,r3,r4,r5,r6,r7,r8,r9,tag) \
+	movq	r1,r2;			\
+	movq	r3,r4;			\
+	movl	r5 ## E,(r9);		\
+	movl	r6 ## E,4(r9);		\
+	movl	r7 ## E,8(r9);		\
+	movl	r8 ## E,12(r9);		\
+        push    %rcx;                   \
+        mov     8(%rsp), %rcx;          \
+        cmpl    $ ## tag, 4(%rcx);      \
+        pop     %rcx;                   \
+        jne     1337f;                  \
+        ret;                            \
+        1337:;                          \
+        call    asm_violation_handler;  \
+	ENDPROC(FUNC);
+
 #define round(TAB,OFFSET,r1,r2,r3,r4,r5,r6,r7,r8,ra,rb,rc,rd) \
 	movzbl	r2 ## H,r5 ## E;	\
 	movzbl	r2 ## L,r6 ## E;	\
@@ -135,6 +153,8 @@
 
 #define return(FUNC) epilogue(FUNC,R8,R2,R9,R7,R5,R6,R3,R4,R11)
 
+#define return_cfi(FUNC,tag) epilogue_cfi(FUNC,R8,R2,R9,R7,R5,R6,R3,R4,R11,tag)
+
 #define encrypt_round(TAB,OFFSET) \
 	round(TAB,OFFSET,R1,R2,R3,R4,R5,R6,R7,R10,R5,R6,R3,R4) \
 	move_regs(R1,R2,R5,R6)
@@ -166,7 +186,11 @@
 	encrypt_round(crypto_ft_tab, 80)
 	encrypt_round(crypto_ft_tab, 96)
 	encrypt_final(crypto_fl_tab,112)
+#ifdef CONFIG_KCFI
+	return_cfi(aes_enc_blk, KCFIr_aes_enc_blk)
+#else
 	return(aes_enc_blk)
+#endif
 
 /* void aes_dec_blk(struct crypto_tfm *tfm, u8 *out, const u8 *in) */
 
@@ -185,4 +209,8 @@
 	decrypt_round(crypto_it_tab, 80)
 	decrypt_round(crypto_it_tab, 96)
 	decrypt_final(crypto_il_tab,112)
+#ifdef CONFIG_KCFI
+	return_cfi(aes_dec_blk, KCFIr_aes_dec_blk)
+#else
 	return(aes_dec_blk)
+#endif

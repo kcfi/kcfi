@@ -21,6 +21,8 @@
  */
 
 #include <linux/linkage.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 .file "camellia-x86_64-asm_64.S"
 .text
@@ -228,13 +230,35 @@ ENTRY(__camellia_enc_blk)
 	enc_outunpack(mov, RT1);
 
 	movq RRBP, %rbp;
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr___camellia_enc_blk, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 
 .L__enc_xor:
 	enc_outunpack(xor, RT1);
 
 	movq RRBP, %rbp;
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr___camellia_enc_blk, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(__camellia_enc_blk)
 
 ENTRY(camellia_dec_blk)
@@ -272,7 +296,18 @@ ENTRY(camellia_dec_blk)
 	dec_outunpack();
 
 	movq RRBP, %rbp;
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_camellia_dec_blk, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(camellia_dec_blk)
 
 /**********************************************************************
@@ -463,14 +498,36 @@ ENTRY(__camellia_enc_blk_2way)
 
 	movq RRBP, %rbp;
 	popq %rbx;
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr___camellia_enc_blk_2way, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 
 .L__enc2_xor:
 	enc_outunpack2(xor, RT2);
 
 	movq RRBP, %rbp;
 	popq %rbx;
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr___camellia_enc_blk_2way, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(__camellia_enc_blk_2way)
 
 ENTRY(camellia_dec_blk_2way)
@@ -510,5 +567,16 @@ ENTRY(camellia_dec_blk_2way)
 
 	movq RRBP, %rbp;
 	movq RXOR, %rbx;
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_camellia_dec_blk_2way, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(camellia_dec_blk_2way)

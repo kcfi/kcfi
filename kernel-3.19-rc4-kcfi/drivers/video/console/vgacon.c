@@ -1416,7 +1416,22 @@ static int vgacon_dummy(struct vc_data *c)
 	return 0;
 }
 
+static void vgacon_dummy_fixed_params(struct vc_data *c, ushort *s, int a, int b, int d)
+{
+        return;
+}
+
+static void vgacon_dummy_fixed_params_2(struct vc_data *c, int a, int b, int d)
+{
+        return;
+}
+
+
+
 #define DUMMY (void *) vgacon_dummy
+#define DUMMY_FIXED (void *) vgacon_dummy_fixed_params
+#define DUMMY_FIXED2 (void *) vgacon_dummy_fixed_params_2
+
 
 const struct consw vga_con = {
 	.owner = THIS_MODULE,
@@ -1424,8 +1439,8 @@ const struct consw vga_con = {
 	.con_init = vgacon_init,
 	.con_deinit = vgacon_deinit,
 	.con_clear = DUMMY,
-	.con_putc = DUMMY,
-	.con_putcs = DUMMY,
+	.con_putc = DUMMY_FIXED2,
+	.con_putcs = DUMMY_FIXED,
 	.con_cursor = vgacon_cursor,
 	.con_scroll = vgacon_scroll,
 	.con_bmove = DUMMY,

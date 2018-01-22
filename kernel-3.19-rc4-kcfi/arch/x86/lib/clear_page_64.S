@@ -1,6 +1,7 @@
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
 #include <asm/alternative-asm.h>
+#include <kcfi/kcfi_tags.h>
 
 /*
  * Zero a page. 	
@@ -11,7 +12,18 @@ ENTRY(clear_page_c)
 	movl $4096/8,%ecx
 	xorl %eax,%eax
 	rep stosq
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_clear_page, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(clear_page_c)
 
@@ -20,7 +32,18 @@ ENTRY(clear_page_c_e)
 	movl $4096,%ecx
 	xorl %eax,%eax
 	rep stosb
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_clear_page, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(clear_page_c_e)
 
@@ -43,7 +66,18 @@ ENTRY(clear_page)
 	leaq	64(%rdi),%rdi
 	jnz	.Lloop
 	nop
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_clear_page, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 .Lclear_page_end:
 ENDPROC(clear_page)

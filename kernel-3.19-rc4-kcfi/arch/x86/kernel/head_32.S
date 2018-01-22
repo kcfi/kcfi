@@ -22,6 +22,8 @@
 #include <asm/cpufeature.h>
 #include <asm/percpu.h>
 #include <asm/nops.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 /* Physical address */
 #define pa(X) ((X) - __PAGE_OFFSET)
@@ -404,6 +406,7 @@ enable_paging:
 	andl %eax,%eax
 	jz 1f				# Did we do this already?
 	call *%eax
+	KCFI_TAG(0x00dead00) /* kCFI INSTR */
 1:
 
 /*
@@ -566,6 +569,7 @@ ENTRY(early_idt_handler)
 
 	leal 28(%esp),%eax	# Pointer to %eip
 	call early_fixup_exception
+	KCFI_TAG(KCFIr_early_fixup_exception) /* kCFI INSTR */
 	andl %eax,%eax
 	jnz ex_entry		/* found an exception entry */
 
@@ -586,8 +590,10 @@ ENTRY(early_idt_handler)
 	pushl (20+6*4)(%esp)	/* trapno */
 	pushl $fault_msg
 	call printk
+	KCFI_TAG(KCFIr_printk) /* kCFI INSTR */
 #endif
 	call dump_stack
+	KCFI_TAG(KCFIr_dump_stack) /* kCFI INSTR */
 hlt_loop:
 	hlt
 	jmp hlt_loop
@@ -626,8 +632,10 @@ ignore_int:
 	pushl 40(%esp)
 	pushl $int_msg
 	call printk
+	KCFI_TAG(KCFIr_printk) /* kCFI INSTR */
 
 	call dump_stack
+	KCFI_TAG(KCFIr_dump_stack) /* kCFI INSTR */
 
 	addl $(5*4),%esp
 	popl %ds

@@ -242,6 +242,15 @@ static void __init_or_module add_nops(void *insns, unsigned int len)
 extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 extern s32 __smp_locks[], __smp_locks_end[];
 void *text_poke_early(void *addr, const void *opcode, size_t len);
+static void *unopt_memcpy(void *dest, const void *src, size_t count)
+{
+	char *tmp = dest;
+	const char *s = src;
+
+	while (count--)
+		*tmp++ = *s++;
+	return dest;
+}
 
 /* Replace instructions with better alternatives for this CPU type.
    This runs before SMP is initialized to avoid SMP problems with
@@ -275,7 +284,7 @@ void __init_or_module apply_alternatives(struct alt_instr *start,
 		if (!boot_cpu_has(a->cpuid))
 			continue;
 
-		memcpy(insnbuf, replacement, a->replacementlen);
+		unopt_memcpy(insnbuf, replacement, a->replacementlen);
 
 		/* 0xe8 is a relative jump; fix the offset. */
 		if (*insnbuf == 0xe8 && a->replacementlen == 5)
@@ -529,7 +538,7 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
 {
 	unsigned long flags;
 	local_irq_save(flags);
-	memcpy(addr, opcode, len);
+	unopt_memcpy(addr, opcode, len);
 	sync_core();
 	local_irq_restore(flags);
 	/* Could also do a CLFLUSH here to speed up CPU recovery; but

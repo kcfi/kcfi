@@ -4,6 +4,7 @@
 
 #include <linux/linkage.h>
 #include <asm/page_types.h>
+#include <kcfi/kcfi.h>
 
 	.text
 	.code64
@@ -45,6 +46,7 @@ ENTRY(efi64_thunk)
 	leaq	__efi64_thunk(%rip), %rbx
 	subq	%rax, %rbx
 	call	*%rbx
+	KCFI_TAG(0x00dead00) /* kCFI INSTR */
 
 	movq	efi_saved_sp(%rip), %rsp
 	pop	%rbx

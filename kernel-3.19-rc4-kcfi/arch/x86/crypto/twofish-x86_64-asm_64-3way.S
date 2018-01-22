@@ -21,6 +21,8 @@
  */
 
 #include <linux/linkage.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 .file "twofish-x86_64-asm-3way.S"
 .text
@@ -258,7 +260,18 @@ ENTRY(__twofish_enc_blk_3way)
 	popq %r13;
 	popq %r14;
 	popq %r15;
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr___twofish_enc_blk_3way, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 
 .L__enc_xor3:
 	outunpack_enc3(xor);
@@ -269,7 +282,18 @@ ENTRY(__twofish_enc_blk_3way)
 	popq %r13;
 	popq %r14;
 	popq %r15;
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr___twofish_enc_blk_3way, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(__twofish_enc_blk_3way)
 
 ENTRY(twofish_dec_blk_3way)
@@ -308,5 +332,16 @@ ENTRY(twofish_dec_blk_3way)
 	popq %r13;
 	popq %r14;
 	popq %r15;
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_twofish_dec_blk_3way, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret;
+#endif
 ENDPROC(twofish_dec_blk_3way)

@@ -47,6 +47,8 @@
 ########################################################################
 
 #include <linux/linkage.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 ## assume buffers not aligned
 #define    MOVDQ movdqu
@@ -471,7 +473,18 @@ done_hash:
 	popq    %rbp
 	popq    %rbx
 
+#ifdef CONFIG_KCFI
+	push %r11
+	mov 8(%rsp), %r11
+	cmpl $KCFIr_sha256_transform_ssse3, 4(%r11)
+        pop %r11
+	jne 1337f
+	retq
+1337:
+	call asm_violation_handler
+#else
 	ret
+#endif
 ENDPROC(sha256_transform_ssse3)
 
 .data

@@ -11,6 +11,23 @@
 #include <asm/kexec.h>
 #include <asm/processor-flags.h>
 #include <asm/pgtable_types.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
+
+#ifdef CONFIG_KCFI
+#ifndef CONFIG_KCFI_COARSE
+.macro KCFI_TAG tag=-1
+	nopl \tag
+.endm
+#else
+.macro KCFI_TAG tag=-1
+	nopl 0x1337beef
+.endm
+#endif
+#else
+.macro KCFI_TAG tag=-1
+.endm
+#endif
 
 /*
  * Must be relocatable PIC code callable as a C function
@@ -97,9 +114,21 @@ relocate_kernel:
 	/* jump to identity mapped page */
 	addq	$(identity_mapped - relocate_kernel), %r8
 	pushq	%r8
+#ifdef CONFIG_KCFI
+        push    %r11
+        mov     8(%rsp), %r11
+        cmpl    $KCFIr_relocate_kernel, 4(%r11)
+        pop     %r11
+        jne     1337f
+        ret
+        1337:
+        call    asm_violation_handler
+#else
 	ret
+#endif
 
 identity_mapped:
+	KCFI_TAG KCFIc_identity_mapped /* KCFI INSTR */
 	/* set return address to 0 if not preserving context */
 	pushq	$0
 	/* store the start address on the stack */
@@ -134,6 +163,7 @@ identity_mapped:
 
 	movq	%rcx, %r11
 	call	swap_pages
+	KCFI_TAG KCFIr_swap_pages /* kCFI INSTR */
 
 	/*
 	 * To be certain of avoiding problems with self-modifying code
@@ -166,13 +196,24 @@ identity_mapped:
 	xorl	%r13d, %r13d
 	xorl	%r14d, %r14d
 	xorl	%r15d, %r15d
-
+#ifdef CONFIG_KCFI
+        push    %r11
+        mov     8(%rsp), %r11
+        cmpl    $KCFIr_identity_mapped, 4(%r11)
+        pop     %r11
+        jne     1337f
+        ret
+        1337:
+        call    asm_violation_handler
+#else
 	ret
+#endif
 
 1:
 	popq	%rdx
 	leaq	PAGE_SIZE(%r10), %rsp
 	call	*%rdx
+	KCFI_TAG 0x00dead00 /* kCFI INSTR */
 
 	/* get the re-entry point of the peer system */
 	movq	0(%rsp), %rbp
@@ -186,11 +227,24 @@ identity_mapped:
 	movq	%rax, %cr3
 	lea	PAGE_SIZE(%r8), %rsp
 	call	swap_pages
+	KCFI_TAG KCFIr_swap_pages /* kCFI INSTR */
 	movq	$virtual_mapped, %rax
 	pushq	%rax
+#ifdef CONFIG_KCFI
+        push    %r11
+        mov     8(%rsp), %r11
+        cmpl    $KCFIr_identity_mapped, 4(%r11)
+        pop     %r11
+        jne     1337f
+        ret
+        1337:
+        call    asm_violation_handler
+#else
 	ret
+#endif
 
 virtual_mapped:
+	KCFI_TAG KCFIc_virtual_mapped /*KCFI INSTR */
 	movq	RSP(%r8), %rsp
 	movq	CR4(%r8), %rax
 	movq	%rax, %cr4
@@ -207,7 +261,18 @@ virtual_mapped:
 	popq	%r12
 	popq	%rbp
 	popq	%rbx
+#ifdef CONFIG_KCFI
+        push    %r11
+        mov     8(%rsp), %r11
+        cmpl    $KCFIr_virtual_mapped, 4(%r11)
+        pop     %r11
+        jne     1337f
+        ret
+        1337:
+        call    asm_violation_handler
+#else
 	ret
+#endif
 
 	/* Do the copies */
 swap_pages:
@@ -262,7 +327,18 @@ swap_pages:
 	lea	PAGE_SIZE(%rax), %rsi
 	jmp	0b
 3:
+#ifdef CONFIG_KCFI
+        push    %r11
+        mov     8(%rsp), %r11
+        cmpl    $KCFIr_swap_pages, 4(%r11)
+        pop     %r11
+        jne     1337f
+        ret
+        1337:
+        call    asm_violation_handler
+#else
 	ret
+#endif
 
 	.globl kexec_control_code_size
 .set kexec_control_code_size, . - relocate_kernel

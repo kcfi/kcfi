@@ -2146,6 +2146,7 @@ static struct page *__read_cache_page(struct address_space *mapping,
 {
 	struct page *page;
 	int err;
+        int (*proto_fix)(struct file*, struct page*);
 repeat:
 	page = find_get_page(mapping, index);
 	if (!page) {
@@ -2160,7 +2161,8 @@ repeat:
 			/* Presumably ENOMEM for radix tree node */
 			return ERR_PTR(err);
 		}
-		err = filler(data, page);
+                proto_fix = (int (*)(struct file*, struct page*)) filler;
+                err = proto_fix(data, page);
 		if (err < 0) {
 			page_cache_release(page);
 			page = ERR_PTR(err);
@@ -2180,6 +2182,7 @@ static struct page *do_read_cache_page(struct address_space *mapping,
 {
 	struct page *page;
 	int err;
+        int (*proto_fix)(struct file*, struct page*);
 
 retry:
 	page = __read_cache_page(mapping, index, filler, data, gfp);
@@ -2198,7 +2201,8 @@ retry:
 		unlock_page(page);
 		goto out;
 	}
-	err = filler(data, page);
+        proto_fix = (int (*)(struct file*, struct page*)) filler;
+        err = proto_fix(data, page);
 	if (err < 0) {
 		page_cache_release(page);
 		return ERR_PTR(err);

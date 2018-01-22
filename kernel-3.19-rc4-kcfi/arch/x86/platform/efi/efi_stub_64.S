@@ -11,6 +11,8 @@
 #include <asm/msr.h>
 #include <asm/processor-flags.h>
 #include <asm/page_types.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_tags.h>
 
 #define SAVE_XMM			\
 	mov %rsp, %rax;			\
@@ -85,10 +87,27 @@ ENTRY(efi_call)
 	mov %rsi, %rcx
 	SWITCH_PGT
 	call *%rdi
+#ifdef CONFIG_KCFI
+#ifdef CONFIG_KCFI_COARSE
+	nopl 0x1337beef /* kCFI INSTR */
+#else
+	nopl 0x00dead00 /* kCFI INSTR */
+#endif
 	RESTORE_PGT
 	addq $48, %rsp
 	RESTORE_XMM
-	ret
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_efi_call, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
+        ret
+#endif
 ENDPROC(efi_call)
 
 #ifdef CONFIG_EFI_MIXED
@@ -189,6 +208,7 @@ ENTRY(efi_enter32)
 	wrmsr
 
 	call	*%edi
+	KCFI_TAG(0x00dead00) /* kCFI INSTR */
 
 	/* We must preserve return value */
 	movl	%eax, %edi

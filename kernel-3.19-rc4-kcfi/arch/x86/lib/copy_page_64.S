@@ -3,13 +3,25 @@
 #include <linux/linkage.h>
 #include <asm/dwarf2.h>
 #include <asm/alternative-asm.h>
+#include <kcfi/kcfi_tags.h>
 
 	ALIGN
 copy_page_rep:
 	CFI_STARTPROC
 	movl	$4096/8, %ecx
 	rep	movsq
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_copy_page_rep, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 	CFI_ENDPROC
 ENDPROC(copy_page_rep)
 
@@ -89,7 +101,18 @@ ENTRY(copy_page)
 	CFI_RESTORE r12
 	addq	$2*8, %rsp
 	CFI_ADJUST_CFA_OFFSET -2*8
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_copy_page_rep, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 .Lcopy_page_end:
 	CFI_ENDPROC
 ENDPROC(copy_page)

@@ -5,6 +5,7 @@
 #include <asm/cpufeature.h>
 #include <asm/dwarf2.h>
 #include <asm/alternative-asm.h>
+#include <kcfi/kcfi_tags.h>
 
 /*
  * memcpy - Copy a memory block.
@@ -33,7 +34,18 @@
 	rep movsq
 	movl %edx, %ecx
 	rep movsb
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_memcpy, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 .Lmemcpy_e:
 	.previous
 
@@ -49,7 +61,18 @@
 	movq %rdi, %rax
 	movq %rdx, %rcx
 	rep movsb
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_memcpy, 4(%r11)
+        pop %r11
+        jne 1337f
+        ret
+        1337:
+        call asm_violation_handler
+#else
 	ret
+#endif
 .Lmemcpy_e_e:
 	.previous
 
@@ -136,7 +159,18 @@ ENTRY(memcpy)
 	movq %r9,	1*8(%rdi)
 	movq %r10,	-2*8(%rdi, %rdx)
 	movq %r11,	-1*8(%rdi, %rdx)
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_memcpy, 4(%r11)
+        pop %r11
+        jne 1337f
+        retq
+        1337:
+        call asm_violation_handler
+#else
 	retq
+#endif
 	.p2align 4
 .Lless_16bytes:
 	cmpl $8,	%edx
@@ -148,7 +182,18 @@ ENTRY(memcpy)
 	movq -1*8(%rsi, %rdx),	%r9
 	movq %r8,	0*8(%rdi)
 	movq %r9,	-1*8(%rdi, %rdx)
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_memcpy, 4(%r11)
+        pop %r11
+        jne 1337f
+        retq
+        1337:
+        call asm_violation_handler
+#else
 	retq
+#endif
 	.p2align 4
 .Lless_8bytes:
 	cmpl $4,	%edx
@@ -161,7 +206,18 @@ ENTRY(memcpy)
 	movl -4(%rsi, %rdx), %r8d
 	movl %ecx, (%rdi)
 	movl %r8d, -4(%rdi, %rdx)
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_memcpy, 4(%r11)
+        pop %r11
+        jne 1337f
+        retq
+        1337:
+        call asm_violation_handler
+#else
 	retq
+#endif
 	.p2align 4
 .Lless_3bytes:
 	subl $1, %edx
@@ -179,7 +235,18 @@ ENTRY(memcpy)
 	movb %cl, (%rdi)
 
 .Lend:
+#ifdef CONFIG_KCFI
+        push %r11
+        mov 8(%rsp), %r11
+        cmpl $KCFIr_memcpy, 4(%r11)
+        pop %r11
+        jne 1337f
+        retq
+        1337:
+        call asm_violation_handler
+#else
 	retq
+#endif
 	CFI_ENDPROC
 ENDPROC(memcpy)
 ENDPROC(__memcpy)

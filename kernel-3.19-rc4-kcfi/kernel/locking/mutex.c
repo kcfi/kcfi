@@ -26,6 +26,9 @@
 #include <linux/interrupt.h>
 #include <linux/debug_locks.h>
 #include "mcs_spinlock.h"
+#include <kcfi/kcfi_tags.h>
+#include <kcfi/kcfi.h>
+#include <kcfi/kcfi_snippets.h>
 
 /*
  * In the DEBUG case we are using the "NULL fastpath" for mutexes,
@@ -99,7 +102,11 @@ void __sched mutex_lock(struct mutex *lock)
 	 * The locking fastpath is the 1->0 transition from
 	 * 'unlocked' into 'locked' state.
 	 */
+#ifdef CONFIG_KCFI
+	cfi_mutex_fastpath_lock;
+#else
 	__mutex_fastpath_lock(&lock->count, __mutex_lock_slowpath);
+#endif
 	mutex_set_owner(lock);
 }
 
@@ -425,7 +432,11 @@ void __sched mutex_unlock(struct mutex *lock)
 	 */
 	mutex_clear_owner(lock);
 #endif
+#ifdef CONFIG_KCFI
+	cfi_mutex_fastpath_unlock2;
+#else
 	__mutex_fastpath_unlock(&lock->count, __mutex_unlock_slowpath);
+#endif
 }
 
 EXPORT_SYMBOL(mutex_unlock);
@@ -464,7 +475,11 @@ void __sched ww_mutex_unlock(struct ww_mutex *lock)
 	 */
 	mutex_clear_owner(&lock->base);
 #endif
+#ifdef CONFIG_KCFI
+	cfi_mutex_fastpath_unlock;
+#else
 	__mutex_fastpath_unlock(&lock->base.count, __mutex_unlock_slowpath);
+#endif
 }
 EXPORT_SYMBOL(ww_mutex_unlock);
 

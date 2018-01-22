@@ -80,6 +80,17 @@ CFLAGS_REMOVE_vclock_gettime.o = -pg
 CFLAGS_REMOVE_vgetcpu.o = -pg
 CFLAGS_REMOVE_vvar.o = -pg
 
+CFLAGS_vdso-note.o = -mllvm -disable-cfi
+CFLAGS_vclock_gettime.o = -mllvm -disable-cfi
+CFLAGS_vgetcpu.o = -mllvm -disable-cfi
+CFLAGS_vvar.o = -mllvm -disable-cfi
+CFLAGS_vdso32-setup.o = -mllvm -cfi-no-checks
+CFLAGS_vdso-image-64.o = -mllvm -disable-cfi
+CFLAGS_vdso-image-x32.o = -mllvm -disable-cfi
+CFLAGS_vdso-image-32-int80.o = -mllvm -disable-cfi
+CFLAGS_vdso-image-32-syscall.o = -mllvm -disable-cfi
+CFLAGS_vdso-image-32-sysenter.o = -mllvm -disable-cfi
+
 #
 # X32 processes use x32 vDSO to access 64bit kernel data.
 #
