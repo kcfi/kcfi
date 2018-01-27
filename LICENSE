@@ -1,0 +1,29 @@
+kCFI was implemented by Joao Moreira between 2014 and 2016 as a resulting
+asset from a PhD program developed at the University of Campinas (Unicamp), in
+Sao Paulo - Brazil, and in Collaboration with Columbia University, in the city
+of New York - USA.
+
+** Authors and collaborators:
+Joao Moreira <jmoreira@suse.de>
+Vasileios Kemerlis <vpk@cs.brown.edu>
+Sandro Rigo <sandro@ic.unicamp.br>
+Marios Pomonis <mpomonis@cs.columbia.edu>
+
+** Licenses:
+kCFI is a project that brings together different technologies which were
+published under differente Licenses. Due to that, different branches inside
+the project follow different Licenses, accordingly to what was originally
+required by the authors.
+
+This way:
+
+- kernel-3.19-rc4-kcfi: contains the linux kernel sources and respective
+modifications. All modifications are under GPLv2.
+
+- llvm-kcfi: contains a modified version of LLVM. The original sources and
+the respective modifications are under MIT license.
+
+- kcfi-tools: contains a large set of tools that are used for binary analysis,
+CFI instrumentation and validation throughout the process of compiling a new
+kernel with CFI. Except for the files insider the subdirectory configs/, all
+source code in this directory are under GPLv3.

@@ -1,0 +1,62 @@
+kCFI is a Control-Flow Integrity implementation for the Linux kernel. kCFI is
+built on top of the LLVM compiler and currently supports kernel 3.19. Due to its
+dependency on different technologies, kCFI is a multi-license project; please
+check LICENSE for details.
+
+For technical information on kCFI, please check documents at:
+- https://github.com/kcfi/
+
+* Dependencies:
+
+Correctly building kCFI will require you to first build the compiler
+infrastructure, and then build the instrumented kernel. For the former, your
+system may provide a Lua 5.2 interpreter, gcc, cmake and ninja. Although it
+is possible to build everything without the two last itens, the setup scripts
+placed within the project depend on it.
+
+* Building the infrastructure:
+
+After cloning kCFI repository, enter the directory. Run the script "setup.sh"
+placed within the respository root:
+
+./setup.sh
+
+This script builds the kCFI infrastructure -- it will compile the modified LLVM
+and all offline tools required for instrumenting the kernel, placing each item
+in its correct directory.
+
+* Building the kernel:
+
+Once the infrastructure compilation is finished, enter the kernel directory:
+
+cd kernel-3.19-rc4-kcfi
+
+Copy a supported config file into the directory. Supported configs are available
+at kcfi/kcfi-tools/configs/*. config_min is a config file known to be sufficient
+for booting a protected kCFI kernel on qemu VMs.
+
+cp ../kcfi-tools/configs/config_min ./.config
+
+Enter the build-tools directory, invoke a compilation script and then install
+the kernel.
+
+cd build-tools
+./build_kcfi_kernel.sh
+cd ..
+sudo make install
+
+* Support:
+
+Prior to release, kCFI was tested through running lmbench and phoronix
+benchmark applications on top of protected kernels built with specific config
+files. Yet, it is possible that, even with these configs, different workloads
+may surface false-positive violations.
+
+Loadable kernel module support was not extensively tested by this release but,
+in principle, nothing prevents it from working correctly.
+
+Finally, the kCFI development team would be interested in knowing about
+identified false-positives and the test of different config files. Please,
+forward any valuable information to <jmoreira@suse.de>
+
+* Have fun :)
