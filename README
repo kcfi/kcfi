@@ -59,4 +59,13 @@ Finally, the kCFI development team would be interested in knowing about
 identified false-positives and the test of different config files. Please,
 forward any valuable information to <jmoreira@suse.de>
 
+* Known issues:
+
+It is known that clang 3.7 may have some compatibility issues with newer
+versions of gcc in certain Linux distros. While compiling kCFI in an
+openSUSE Leap 15 with gcc 7 installed, a linking error emerged. The fix
+consisted in creating a symlink in "/lib" pointing to
+"/usr/lib64/gcc/x86_64-suse-linux/7". Other distros may require this to be
+tweaked a bit.
+
 * Have fun :)
