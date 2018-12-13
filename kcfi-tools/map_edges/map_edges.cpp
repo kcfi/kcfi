@@ -80,7 +80,7 @@ int main(int argc, char *argv[]){
       j++;
     }
   }
-  lines[j] = '\0';
+  lines[j] = 0x0;
 
   // remove empty lines
   for(int i = 0; i < f; i++){
