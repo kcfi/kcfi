@@ -1,0 +1,83 @@
+1 - kCFI History
+
+kCFI started as a research project in mid-2014. At this point, no other Linux
+kernel fine-grained CFI implementation was available and the goal was not only
+to achieve CFI within the kernel but also make CFI as fine-grained as possible
+in this given context. The project was a collaboration between the University of
+Campinas (Unicamp) and Columbia University and was ignited when the author, Joao
+Moreira, visited Columbia University as a visiting scholar, funded by the
+program PDSE from CAPES/Brazil. The project also had as contributors Prof.
+Vasilis Kemerlis (now at Brown University), Prof. Sandro Rigo (University of
+Campinas) and Prof. Michalis Polychronakis (now at Stony Brook University).
+
+The core part of kCFI was implemented between mid-2014 and mid-2016 and its
+first prototype (named FLOW at the time) was described in the form of a paper
+in the SBSeg 2016 Conference [1], In Brazil. From this point, a lot was added
+to the implementation and the project was still under development until the end
+of 2016. In April of 2017, kCFI, in its final stage, appeared at Black Hat Asia
+[2].
+
+With the presentation on Black Hat Asia, Joao Moreira ceased his contributions
+to kCFI. From there, the project was (and still is) used by researchers in the
+University of Campinas in the development of compiler optimizations for the CFI
+context. With such, the project ended never being released until now.
+
+The released source-code supports fine-grained CFI for a given .config file in
+the Linux Kernel 3.19. The given .config file is known to boot well in a
+standard QEMU Virtual Machine. Despite the deprecated source-code and limited
+.config file, we release it with the best intention of giving another reference
+for anyone developing this kind of research.
+
+While the project will not be actively maintained, the author is happy to
+provide any kind of guidance for anyone willing to explore it.
+
+2 - Timeline wrt PaX RAP and Upstream Kernel CFI
+
+To make justice on other CFI implementations, it is fair to mention a few facts:
+
+- In April 2016, PaX released a test version of RAP [3], which implemented
+indirect call prototype matching and return address encryption mitigations.
+
+- The kCFI talk submitted to Black Hat Asia 2017 in October 2016 and, in
+December 2016 accepted as a briefing to be presented in April 2017. As the
+available PaX RAP version did not implement deterministic return checks and kCFI
+did, it was announced as the first implementation of its kind to fully support
+the Linux kernel [4]. The current version of PaX RAP was not ignored and is
+properly cited in the kCFI paper [5].
+
+- In February 2017 PaX RAP releases a new version that supports deterministic
+return checks [6]. This renders them the pioneering status and voids the claim
+that kCFI is the first implementation of its type to fully support the Linux
+kernel. We were not careful enough to update the kCFI announcement, and this was
+our mistake and we apologize for any brought inconvenience.
+
+Besides the confusing timeline, we also would like to mention that the kCFI work
+was mainly inspired by the CFI paper by Martin Abadi [7], yet, it later came to
+our attention that some similar ideas appear in the document pax-future.txt [8],
+which was released years before.
+
+Needless to say that other CFI implementations also came out in this long gap
+between this release and the Black Hat Asia presentation, including Linux kernel
+upstream support for LLVM's fine-grained CFI on forward-edges on the ARM
+architecture. A similar feature for the x86 is also being cooked and should be
+available soon [9].
+
+3 - References
+
+[1] - https://www.researchgate.net/publication/315755632_Go_With_the_FLOW_Fine-Grained_Control-Flow_Integrity_for_the_Kernel
+
+[2] - https://www.blackhat.com/docs/asia-17/materials/asia-17-Moreira-Drop-The-Rop-Fine-Grained-Control-Flow-Integrity-For-The-Linux-Kernel-wp.pdf
+
+[3] - https://grsecurity.net/rap_announce
+
+[4] - https://www.blackhat.com/asia-17/briefings.html
+
+[5] - https://www.blackhat.com/docs/asia-17/materials/asia-17-Moreira-Drop-The-Rop-Fine-Grained-Control-Flow-Integrity-For-The-Linux-Kernel-wp.pdf
+
+[6] - https://grsecurity.net/rap_announce2
+
+[7] - https://dl.acm.org/citation.cfm?id=1102165
+
+[8] - https://pax.grsecurity.net/docs/pax-future.txt
+
+[9] - https://outflux.net/blog/archives/2019/11/20/experimenting-with-clang-cfi-on-upstream-linux/
