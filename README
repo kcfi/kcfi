@@ -57,7 +57,7 @@ in principle, nothing prevents it from working correctly.
 
 Finally, the kCFI development team would be interested in knowing about
 identified false-positives and the test of different config files. Please,
-forward any valuable information to <jmoreira@suse.de>
+forward any valuable information to <joao@overdrivepizza.com>
 
 * Known issues:
 

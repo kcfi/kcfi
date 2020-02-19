@@ -1,6 +1,6 @@
 -- kcfi-tools Copyright (C) 2015 Universidade Estadual de Campinas
 --
--- This software was developed by Joao Moreira <jmoreira@suse.de>
+-- This software was developed by Joao Moreira <joao@overdrivepizza.com>
 -- at Universidade Estadual de Campinas, SP, Brazil, in 2015.
 --
 -- This program is free software: you can redistribute it and/or modify
