@@ -1,0 +1,559 @@
+Since we presented kCFI at Black Hat Asia 2017, some folks have asked for a
+comparison between kCFI and RAP (from PaX). We did not explicitly address this
+issue during our talk, as we wanted to make the most out of the time given to
+us for presenting our tool. Still, we were ready to discuss this during the Q&A
+session, but nobody minded asking related questions. Although we were asked
+about these details during the proposal evaluation, the committee never
+required us to explain them during the talk.
+
+Both kCFI and RAP are Control-Flow Integrity (CFI) solutions that aim at
+protecting the Linux kernel. Both are based on the original CFI proposal
+suggested by Abadi et al. [1] (note in section "Considerations"), which consists
+of instrumenting all indirect branch instructions with inline checks and valid
+destinations with hashes. Both schemes use a similar method for validating
+indirect calls, which is through pairing prototypes between function pointers
+and called functions. (Note that this heuristic is also on Abadi's original
+proposal.) For checking returns, the approach considers as valid those
+destinations which are consecutive to a 'call' instruction (i.e., the
+instruction right after a respective direct or indirect call).
+
+Because many different functions can be invoked through a function pointer, and
+only one hash can be placed on the return site, all these functions must be
+clustered into a group of functions allowed to be called through a specific
+indirect call and return to the respective return site.
+
+RAP also implements an additional return check, which is based on return
+address "encryption". We do not implement anything similar in kCFI; our scheme
+relies completely on static CFG enforcement. To improve the resiliency of our
+method, however, we refine our CFG further to what was originally possible
+through simple prototype matching between functions and function pointers: (i)
+we identify those functions which are never indirectly called, preventing these
+from being clustered; and (ii) we introduce a technique we call Call-Graph
+Detaching (CGD) to solve a problem we call 'transitive clustering relaxation'.
+
+While RAP is a commercial product, kCFI is a research artifact, developed on
+top of LLVM/LLVMLinux projects, designed to allow experimentation, development,
+and assessment of new CFI strategies. Below we describe how kCFI helped us
+identify and solve problems that prevent the enforced CFG from being in a more
+fine-grained form; we also discuss how our strategies to fix these differ from
+what is done in RAP.
+
+
+** Preventing Unnecessary Clustering
+
+In RAP, hashes are generated for functions based on their prototype, regardless
+of the fact that a respective function pointer may not exist. This approach
+results in unnecessary clustering and leads to all functions with the same
+prototype being allowed to return to the same targets (a large set with all
+return sites of all functions with the same prototype) even though these are
+all direct calls.
+
+For instance, in a PaX-patched kernel, we confirmed the above by checking the
+functions 'cpuidle_remove_device_sysfs', 'cpuidle_remove_sysfs',
+'cpuidle_unregister_device' and 'cpuidle_disable_device', which have the same
+prototype and check for the same hash 0xffffffffacaf3437 before returning. We
+could not find this same hash preceding an indirect call, meaning that these
+functions are only allowed to return to call sites after direct calls (but
+are needlessly clustered).
+
+In kCFI, prior to giving a tag to a specific function, we verify if the
+prototype of this function has a respective function pointer throughout the
+whole kernel. If this is the case, we bind the function with the
+prototype-specific tag. If not, we give to the function a unique tag,
+preventing multiple functions with the same prototype from returning to each
+other's return sites. This trivial measure refines significantly the
+granularity of the enforced CFG.
+
+
+** The Problem of Transitive Clustering Relaxation
+(or, going way further with refining the CFG):
+
+In a nutshell, if a function can be called indirectly, it must check for a
+specific hash (that is placed nearby the indirect call instruction) before
+returning. If this same function is directly called, the same hash must be
+placed nearby the direct call, in a way to validate the function's return. As
+this hash must be the same for both cases (indirect and direct calls), this
+means that all functions that can return to the call site respective to the
+indirect call will also be allowed to return to the call site at the direct
+call. Evidently, this is an unnecessary relaxation to the enforced CFG.
+
+Below are some snippets from a PaX-patched kernel (downloaded/patched/compiled
+on Apr. 5, 2017) that illustrate this issue. The functions listed check for the
+same hash '0xffffffffd3fdeb43' before returning. Later on the kernel binary,
+you see 3 different calls which were relaxed and can be targeted during returns
+from any of the functions listed.
+
+ffffffff81369d40 <tcp_connect_to_sock>:
+...
+# begin of check
+ffffffff81369db9:       48 81 78 f0 43 eb fd    cmpq   $0xffffffffd3fdeb43,-0x10(%rax)
+# hash verified is 0xffffffffd3fdeb43
+ffffffff81369dc0:       d3
+ffffffff81369dc1:       0f 85 2b 03 00 00       jne    ffffffff8136a0f2 <tcp_connect_to_sock+0x3b2>
+ffffffff81369dc7:       48 81 c4 10 01 00 00    add    $0x110,%rsp
+ffffffff81369dce:       5b                      pop    %rbx
+ffffffff81369dcf:       5d                      pop    %rbp
+ffffffff81369dd0:       41 5c                   pop    %r12
+ffffffff81369dd2:       c3                      retq
+
+ffffffff8136ae00 <clean_one_writequeue>:
+...
+ffffffff8136ae97:       48 81 78 f0 43 eb fd    cmpq   $0xffffffffd3fdeb43,-0x10(%rax)
+ffffffff8136ae9e:       d3
+ffffffff8136ae9f:       75 0b                   jne    ffffffff8136aeac <clean_one_writequeue+0xac>
+ffffffff8136aea1:       48 83 c4 08             add    $0x8,%rsp
+ffffffff8136aea5:       5b                      pop    %rbx
+ffffffff8136aea6:       5d                      pop    %rbp
+ffffffff8136aea7:       41 5c                   pop    %r12
+ffffffff8136aea9:       41 5d                   pop    %r13
+ffffffff8136aeab:       c3                      retq
+
+ffffffff8195416c <lowcomms_connect_sock>:
+...
+ffffffff819541a5:       48 81 78 f0 43 eb fd    cmpq   $0xffffffffd3fdeb43,-0x10(%rax)
+ffffffff819541ac:       d3
+ffffffff819541ad:       75 01                   jne    ffffffff819541b0 <lowcomms_connect_sock+0x44>
+ffffffff819541af:       c3                      retq
+
+ffffffff81368670 <stop_conn>:
+...
+ffffffff81368695:       48 81 78 f0 43 eb fd    cmpq   $0xffffffffd3fdeb43,-0x10(%rax)
+ffffffff8136869c:       d3
+ffffffff8136869d:       75 02                   jne    ffffffff813686a1 <stop_conn+0x31>
+ffffffff8136869f:       f3 c3                   repz retq
+
+ffffffff81368d70 <free_conn>:
+...
+ffffffff81368e16:       48 81 78 f0 43 eb fd    cmpq   $0xffffffffd3fdeb43,-0x10(%rax)
+ffffffff81368e1d:       d3
+ffffffff81368e1e:       75 06                   jne    ffffffff81368e26 <free_conn+0xb6>
+ffffffff81368e20:       48 83 c4 08             add    $0x8,%rsp
+ffffffff81368e24:       5b                      pop    %rbx
+ffffffff81368e25:       c3                      retq
+
+Below are examples of call sites for some of the above-listed functions. The
+return sites are marked with hashes which, in PaX, are hard-coded (i.e., are
+not encoded inside an instruction). Hence, are malformed in the dumps. In
+all functions you can see the hash '0xffffffffd3fdeb43' hard-coded
+(little-endian) right after a 'jmp' instruction.
+
+Notice that, irrespectively to which function is being directly called, the
+return-sites are valid for all the above-listed.
+
+ffffffff81369a00 <sctp_connect_to_sock>:
+...
+# jmp to prevent misexecution of hash
+ffffffff81369bee:       eb 0b                   jmp    ffffffff81369bfb <sctp_connect_to_sock+0x1fb>
+# Begin of hash
+ffffffff81369bf0:       43 eb fd                rex.XB jmp ffffffff81369bf0 <sctp_connect_to_sock+0x1f0>
+ffffffff81369bf3:       d3 ff                   sar    %cl,%edi
+ffffffff81369bf5:       ff                      (bad)
+ffffffff81369bf6:       ff                      (bad)
+ffffffff81369bf7:       ff cc                   dec    %esp
+ffffffff81369bf9:       cc                      int3
+ffffffff81369bfa:       cc                      int3
+# End of hash
+ffffffff81369bfb:       e8 6c a5 5e 00          callq  ffffffff8195416c <lowcomms_connect_sock>
+
+ffffffff81369d40 <tcp_connect_to_sock>:
+...
+ffffffff8136a071:       eb 0b                   jmp    ffffffff8136a07e <tcp_connect_to_sock+0x33e>
+ffffffff8136a073:       43 eb fd                rex.XB jmp ffffffff8136a073 <tcp_connect_to_sock+0x333>
+ffffffff8136a076:       d3 ff                   sar    %cl,%edi
+ffffffff8136a078:       ff                      (bad)
+ffffffff8136a079:       ff                      (bad)
+ffffffff8136a07a:       ff cc                   dec    %esp
+ffffffff8136a07c:       cc                      int3
+ffffffff8136a07d:       cc                      int3
+ffffffff8136a07e:       e8 e9 a0 5e 00          callq  ffffffff8195416c <lowcomms_connect_sock>
+
+ffffffff8136b790 <dlm_lowcomms_close>:
+...
+ffffffff8136b7ff:       eb 0b                   jmp    ffffffff8136b80c <dlm_lowcomms_close+0x7c>
+ffffffff8136b801:       43 eb fd                rex.XB jmp ffffffff8136b801 <dlm_lowcomms_close+0x71>
+ffffffff8136b804:       d3 ff                   sar    %cl,%edi
+ffffffff8136b806:       ff                      (bad)
+ffffffff8136b807:       ff                      (bad)
+ffffffff8136b808:       ff cc                   dec    %esp
+ffffffff8136b80a:       cc                      int3
+ffffffff8136b80b:       cc                      int3
+ffffffff8136b80c:       e8 ef f5 ff ff          callq  ffffffff8136ae00 <clean_one_writequeue>
+
+In this example, we have 6 functions being allowed to return to 3 different
+places. This is a small example, used to make the problem easy to understand.
+Yet, if we check functions that have a more "common" prototype, such as
+'void()', things get much worse.
+
+Attached to this document is a script called 'function_counter.lua'. After
+running this script to parse the dump of the PaX-patched kernel used during
+this analysis, we observed that 4557 functions were clustered -- meaning that
+4557 functions are allowed to return to the same group of return-sites.
+
+Later we used another script (also attached) to count the number of possible
+targets allowed to each of these return instructions by matching the hashes in
+the kernel dump. We observed that these 4557 functions were allowed to return
+to 10546 sites in the kernel binary, something we consider overly permissive.
+From these 10546 targets, 10392 are related to direct call sites to functions
+that were merged into the cluster and were transitively allowed as a return to
+all functions belonging to the group. For example, if this transitiveness was
+fixed, whenever one of the functions belonging to the group was indirectly
+invoked, it would only be allowed to return to 154 return sites.
+
+Through applying Call-Graph Detaching (CGD) as described below, we manage to
+fix all these transitively allowed returns that remain present in this
+PaX-patched kernel.
+
+
+** How kCFI Deals with Transitive Clustering (or how CGD works):
+
+The trick is simple: we identify functions that are directly called and are
+also possible indirect call targets (by checking if their prototypes are also
+used in a function pointer declarations throughout the code). If that is the
+case, we create a clone for this function in the binary and replace all direct
+calls to the function with direct calls to the clone. This way, the clone can
+check for a different return hash than the hash used to return from indirect
+invocations (which are made to the original function). Tadah! The problem is
+solved :).
+
+Below we repeat the analysis done above, but on a kernel compiled with kCFI. In
+this new binary, 'clean_one_writequeue' is cloned (as it is invokable both
+directly and indirectly), while 'tcp_connect_to_sock' is not cloned, as there
+are no direct calls to it throughout the code. We omit all other
+functions from the example for brevity.
+
+ffffffff811f44b6 <clean_one_writequeue>:
+...
+ffffffff811f4535:       48 8b 04 24             mov    (%rsp),%rax
+ffffffff811f4539:       81 78 04 bf 3a cf 0b    cmpl   $0xbcf3abf,0x4(%rax) # This is the hash verification
+ffffffff811f4540:       74 07                   je     ffffffff811f4549 <clean_one_writequeue+0x93>
+ffffffff811f4542:       50                      push   %rax
+ffffffff811f4543:       e8 58 b0 07 00          callq  ffffffff8126f5a0 <ret_violation_handler>
+ffffffff811f4548:       58                      pop    %rax
+ffffffff811f4549:       c3                      retq
+
+ffffffff811f721f <clean_one_writequeue_kcfi>:    # this is the clone
+...
+ffffffff811f7296:       48 8b 04 24             mov    (%rsp),%rax
+ffffffff811f729a:       81 78 04 a7 48 79 0c    cmpl   $0xc7948a7,0x4(%rax) # Different hash for the clone
+ffffffff811f72a1:       74 07                   je     ffffffff811f72aa <clean_one_writequeue_kcfi+0x8b>
+ffffffff811f72a3:       50                      push   %rax
+ffffffff811f72a4:       e8 f7 82 07 00          callq  ffffffff8126f5a0 <ret_violation_handler>
+ffffffff811f72a9:       58                      pop    %rax
+ffffffff811f72aa:       c3                      retq
+
+ffffffff811f5a9f <tcp_connect_to_sock>:
+...
+ffffffff811f5dd7:       48 8b 04 24             mov    (%rsp),%rax
+ffffffff811f5ddb:       81 78 04 bf 3a cf 0b    cmpl   $0xbcf3abf,0x4(%rax)
+ffffffff811f5de2:       74 07                   je     ffffffff811f5deb <tcp_connect_to_sock+0x34c>
+ffffffff811f5de4:       50                      push   %rax
+ffffffff811f5de5:       e8 b6 97 07 00          callq  ffffffff8126f5a0 <ret_violation_handler>
+ffffffff811f5dea:       58                      pop    %rax
+ffffffff811f5deb:       c3                      retq
+
+This is how the respective direct call to 'clean_one_writequeue' looks:
+
+ffffffff811f4332 <dlm_lowcomms_close>:
+...
+ffffffff811f43ec:       e8 2e 2e 00 00          callq  ffffffff811f721f <clean_one_writequeue_kcfi>
+ffffffff811f43f1:       0f 1f 04 25 a7 48 79    nopl   0xc7948a7 # hashes on kCFI are encoded like this
+
+As you can see, 'tcp_connect_to_sock' is unable to target this return site,
+and thus, transitiveness is reduced.
+
+If we take the worst case scenario, in terms of granularity, for a
+kCFI-protected kernel (which involves functions with prototype 'void()'), we
+find that 4374 functions would be originally allowed to return to 10441 call
+sites, but after applying CGD, we reduce this number to 218. Despite the small
+numeric differences between the code bases used on both analyses, the
+improvement remains clear.
+
+In other words, after applying CGD, if any of the selected functions are
+invoked indirectly, they can return to 218 different call sites. If any
+function is called directly, it will only be allowed to return to direct calls
+sites to itself (and this number, of course, varies depending on the function).
+
+As presented on PaX's website [3] they do use type aliasing to refine the CFG
+they enforce, but this is no CGD. As shown above, the CFG they use can be
+further improved by the technique(s) we present.
+
+
+** Other Relevant Details:
+
+* Instrumentation Primitives:
+
+While RAP hard-codes the hash to validate targets, we propose a different
+approach: we encode values inside 'nopl' instructions. This results in
+instrumentation which does not need to be jumped over, and as the execution of
+'nop' instructions introduces negligible overhead, the performance impact is
+minimal.
+
+The verification primitives we propose also make it possible to retrieve all
+information needed regarding invalid branches. As we use violation handler
+invocations unique to each branch, recovering the origin and the
+destination of an offending branch becomes trivial, allowing the full mapping
+of origins and destinations of branches attempted during an attack. Also, it is
+very easy to link custom violation handlers to the proposed scheme.
+
+* Performance:
+
+Unfortunately, it is very hard to compare the performance of the two schemes.
+First, there is little information regarding RAP performance -- their website
+reports a little set of benchmarking applications. It is also not possible to
+identify which portion of the overhead comes from the return address encryption
+and which portion comes from the static CFG enforcement. RAP also does not
+enforce checks on all edges, under the argument that they are capable of
+distinguishing between safe and unsafe branches. On kCFI, we instrument all
+possible edges, except for those respective to real-mode and bootstrap code.
+
+We evaluated kCFI by running a large set of applications from widely employed
+benchmarks, reaching average overheads of ~2% (~3% for kCFI with CGD) for the
+macro-benchmarks, while RAP reports an average of 5.4%. Yet, this evaluation is
+also harmed due to the use of different code bases for benchmarking.
+
+* Compilation Pipeline:
+
+kCFI relies on source code and binary analyses, and thus it must first run
+a full compilation round in the binary it is supposed to protect. During this
+compilation round kCFI extracts high-level information from the sources, while
+from the generated binary it extracts low-level details, which are hard to see
+from an abstract perspective (like the results of inline optimizations and
+aliasing resolution). The offline nature of the analyses employed by kCFI
+indirectly led to the definition of a concise data structure that describes the
+CFG of the kernel, enabling not only the identification of optimization
+opportunities but also the gathering of statistical information.
+
+While RAP takes pride in only requiring a single compilation round [3] kCFI's
+goals as a research artifact prevent this from being a requirement. Actually,
+considering the tool's scope, there is an advantage in running analyses on the
+CFG with an offline approach -- especially those which are too heavyweight to
+be done during the LTO stage. Also, as the information generated in the first
+compilation and binary analysis can be promptly reused, researchers can focus
+on tweaking the back part of the pipeline without much harm, as they will not
+need to recompute this data.
+
+Although we cannot affirm that it is impossible, we believe that implementing
+the above-described methods for CFG refinement would be much harder without
+taking a look inside an equivalent compiled/linked binary. Even more, research
+yet to be released also benefits from this approach.
+
+
+** Closing Remarks:
+
+Above we have shown some characteristics of kCFI that can be used in the
+enhancement of other CFI tools (including RAP). kCFI does not implement
+measures like return address encryption, but rather focuses on improving the
+methods used for building the CFG that it statically enforced. While this does
+not necessarily mean that RAP is bad, it makes clear that there is still room
+for improvement either by refining the CFG through the explained techniques or
+through using lightweight 'nop'-encoded tags.
+
+The fact that RAP implements other optimizations (such as type aliasing [3]) to
+refine the enforced CFG shows that they agree on the idea that pruning edges is
+critical to achieving better security guarantees. In fact, when it comes to
+protecting returns, refining the CFG is an important measure for preventing
+loop injections [2].
+
+While not a commercial product, kCFI achieves its goals as a tool to enable the
+development of more fine-grained CFI schemes. Whenever available, kCFI will not
+only allow the compilation of protected kernels but also offer a backbone for
+CFI-related research, including offensive strategies. In fact, we are looking
+forward to seeing talented hackers breaking our tool and providing the means
+for making it better.
+
+The concepts brought here or during the talk are already available for whoever
+desires to implement them on their respective tools, including RAP. Finally,
+kCFI is soon to be released as an open-source tool.
+
+Yours truly,
+The kCFI dudes
+
+
+** Considerations:
+
+After the first release of this document, a PaX contributor pointed out a
+document dated to 2003 [4] in which the PaX developers describe a return
+protection mechanism that resembles what was later suggested by Abadi et al. in
+2005. Yet, for protecting forward-edges, this same document suggests a different
+approach, based on making function pointers non-writable. Currently, both kCFI
+and RAP use the forward-edge scheme described in Abadi's paper.
+
+The transitiveness analysis performed on RAP and kCFI attempts to describe how
+CGD works, and show that RAP does not implement nor applies it. The code base
+compiled and used in both analyses is slightly different (this explains the
+small differences on the numbers), but this does not harm the understanding of
+the benefits brought by CGD.
+
+Although we believe that the binary was mostly covered, the scripts below may
+have missed a couple of corner cases. If certain patterns are missed, we are
+actually considering RAP better than it really is in terms of granularity (as
+we have fewer targets allowed and fewer functions returning to them). Given
+that and the purpose of this analysis, we can ignore the missed patterns
+without causing any harm to the notion of how better RAP could be if it used
+CGD.
+
+** References
+
+[1] - Martin Abadi, Mihai Budiu, Ulfar Erlingsson, and Jay Ligatti. 2005.
+Control-flow integrity. In Proceedings of the 12th ACM conference on Computer
+and communications security (CCS '05). ACM, New York, NY, USA, 340-353.
+DOI=http://dx.doi.org/10.1145/1102120.1102165
+
+[2] - Nicolas Carlini, Antonio Barresi, Mathias Payer, David Wagner, and Thomas
+R. Gross. 2015. Control-flow bending: on the effectiveness of control-flow
+integrity. In Proceedings of the 24th USENIX Conference on Security Symposium
+(SEC'15), Jaeyeon Jung (Ed.). USENIX Association, Berkeley, CA, USA, 161-176.
+
+[3] - FAQ about RAP - https://grsecurity.net/rap_faq.php
+
+[4] - PaX Future, 2003 - https://grsecurity.net/docs/pax-future.txt
+
+** Script 1: function_counter.lua
+
+--- usage: (i)  objdump -d vmlinux > vmlinux.dump
+--- usage: (ii) lua function_counter.lua vmlinux.dump
+--- make sure that the dump is in the format obtained as above
+---
+--- To improve speed, discard useless lines replacing (i) with (iii)
+--- hack: (iii) objdump -d vmlinux | grep -E ">:|cmpq" > vmlinux.dump
+
+function count(dumpname)
+  counted = {}
+  total = 0
+
+  --- open the dump
+  dump = io.open(dumpname, "r")
+  if not dumpname then
+    print("Problem opening dump file")
+    os.exit()
+  end
+
+  --- regex patterns to identify new function and specific hash check
+  --- you may need to tweak the hash below to check different hashes
+  fpattern = "([abcdef1234567890]+)%s<(.*)>:"
+  cpattern = ".*cmpq%s*%$0xffffffffdb9d6e07.*"
+
+  for line in dump:lines() do
+    --- check if parsing a new function
+    addr, name = string.match(line, fpattern)
+    if(name) then
+      --- if yes, change current function
+      context_name = name
+      context_addr = addr
+    end
+
+    --- check if current function has the cluster-specific hash check
+    --- also avoid counting twice (for functions with 2 or more rets)
+    clustered = string.match(line, cpattern)
+    if clustered and not counted[context_addr] then
+      counted[context_addr] = true
+      print("Function " .. context_name .. " is clustered.")
+      total = total + 1
+    end
+  end
+
+  print("Total functions in cluster: " .. total)
+end
+
+count(arg[1])
+
+--- end of script
+
+** Script 2: hash_counter.lua
+
+--- usage: (i)  objdump -d vmlinux | cut -f2,3 > vmlinux.dump
+--- usage: (ii) lua hash_counter.lua vmlinux.dump
+--- make sure that the dump is in the format obtained as above
+
+function count(dumpname)
+  dcalls = 0
+  icalls = 0
+  total = 0
+
+  l1  = ""
+  l2  = ""
+  l3  = ""
+  l4  = ""
+  l5  = ""
+  l6  = ""
+  l7  = ""
+  l8  = ""
+  l9  = ""
+
+  --- hash pattern as appears in dump
+  --- you may have to tweak a bit to check different hashes
+  p1  = "^07"
+  p2  = "^6e"
+  p3  = "^9d"
+  p4  = "^db ff"
+  p5  = "^ff"
+  p6  = "^ff"
+  p7  = "^ff cc"
+  p8  = "^cc"
+  p9  = "^cc"
+  pdc = ".*callq.*<.*>"
+
+  i = 0
+
+  --- open the dump
+  dump = io.open(dumpname, "r")
+  if not dumpname then
+    print("Problem opening dump file")
+    os.exit()
+  end
+
+  for line in dump:lines() do
+    l1 = l2
+    l2 = l3
+    l3 = l4
+    l4 = l5
+    l5 = l6
+    l6 = l7
+    l7 = l8
+    l8 = l9
+    l9 = l10
+    l10 = line
+
+    --- first feed my pipeline :-)
+    if i < 9 then
+      i = i + 1
+    else
+    --- check just first
+    m1 = string.match(l1, p1)
+    if m1 then
+      --- check two next patterns
+      m2 = string.match(l2, p2)
+      m3 = string.match(l3, p3)
+      if m2 and m3 then
+        --- if first three match, this is probably a hit
+        --- check all the rest
+        m4 = string.match(l4, p4)
+        m5 = string.match(l5, p5)
+        m6 = string.match(l6, p6)
+        m7 = string.match(l7, p7)
+        m8 = string.match(l8, p8)
+        m9 = string.match(l9, p9)
+        if m4 and m5 and m6 and m7 and m8 and m9 then
+          --- full match, we got a valid target!
+          total = total + 1
+          --- now check if this is a direct call
+          mdc = string.match(l10, pdc)
+          if mdc then
+            ---uncomment to print computed functions on-the-fly
+            ---print("dcall: " .. l10);
+            dcalls = dcalls + 1
+            end
+          end
+        end
+      end
+    end
+  end
+  print("Number of hashes found: " .. total)
+  print("Direct call returns: " .. dcalls .. "/" .. total)
+  icalls = total - dcalls
+  print("Indirect call returns: " .. icalls .. "/" .. total)
+end
+
+count(arg[1])
+
+--- end of script
